@@ -859,7 +859,12 @@ function moveDocToFolder(docId,folder,e){
   }else{
     docs[i].folder=folder||'';
     docs[i].updatedAt=Date.now();
-    if(docs[i].ghSha){docs[i].ghSha=null;docs[i].ghPath=null;docs[i].ghSyncedContent=undefined;}
+    if(docs[i].ghSha){
+      // Remember the old GitHub path so we can delete the ghost file on next push
+      docs[i].ghOldPath=docs[i].ghPath;
+      docs[i].ghOldSha=docs[i].ghSha;
+      docs[i].ghSha=null;docs[i].ghPath=null;docs[i].ghSyncedContent=undefined;
+    }
     saveDocs(docs);
     scheduleAutoPush(docId);
   }
@@ -1246,7 +1251,34 @@ async function ghPushDoc(docId,opts={silent:false}){
     // Update local state
     const docs2=getDocs();
     const i2=docs2.findIndex(d=>d.id===docId);
-    if(i2!==-1){docs2[i2].ghSha=sha;docs2[i2].ghPath=path;docs2[i2].ghSyncedAt=Date.now();docs2[i2].ghSyncedContent=docs2[i2].content;saveDocs(docs2);}
+    if(i2!==-1){
+      docs2[i2].ghSha=sha;docs2[i2].ghPath=path;docs2[i2].ghSyncedAt=Date.now();docs2[i2].ghSyncedContent=docs2[i2].content;
+      // If the document was moved/renamed, delete the old ghost file on GitHub
+      const oldPath=docs2[i2].ghOldPath;
+      const oldSha=docs2[i2].ghOldSha;
+      if(oldPath&&oldPath!==path){
+        try{
+          // Try with stored SHA first, fallback to fetching it
+          let delSha=oldSha;
+          if(!delSha){
+            const rOld=await ghFetch('/contents/'+encodeURI(oldPath)+'?ref='+encodeURIComponent(c.branch));
+            if(rOld.ok){const jOld=await rOld.json();delSha=jOld.sha;}
+          }
+          if(delSha){
+            await ghFetch('/contents/'+encodeURI(oldPath),{
+              method:'DELETE',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({message:'Move '+oldPath+' → '+path,sha:delSha,branch:c.branch})
+            });
+          }
+        }catch(delErr){
+          console.warn('Impossible de supprimer le fichier fantôme :',oldPath,delErr);
+        }
+      }
+      delete docs2[i2].ghOldPath;
+      delete docs2[i2].ghOldSha;
+      saveDocs(docs2);
+    }
     setDocSync(docId,'ok');
     renderDocs();
     return {ok:true};
@@ -2138,12 +2170,16 @@ function confirmSave(){
   const docs=getDocs(),idx=docs.findIndex(d=>d.id===currentId);
   if(idx!==-1){
     const oldFolder=docs[idx].folder||'';
+    const oldName=docs[idx].name;
     docs[idx].name=name;
     docs[idx].folder=folder;
     docs[idx].content=cm.getValue();
     docs[idx].updatedAt=Date.now();
-    // If folder or name changed, invalidate GitHub path so a fresh upload happens
-    if(oldFolder!==folder){
+    // If folder or name changed, invalidate GitHub path and remember the old one
+    // so we can delete the ghost on next push.
+    if((oldFolder!==folder||oldName!==name)&&docs[idx].ghSha){
+      docs[idx].ghOldPath=docs[idx].ghPath;
+      docs[idx].ghOldSha=docs[idx].ghSha;
       docs[idx].ghSha=null;docs[idx].ghPath=null;docs[idx].ghSyncedContent=undefined;
     }
     saveDocs(docs);
