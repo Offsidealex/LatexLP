@@ -7,9 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html{height:100%}
-body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column}
-
+html,body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column}
 .hdr{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#16213e;border-bottom:1px solid #2a2a4a}
 .logo{font-size:16px;font-weight:600;font-family:monospace;color:#e0e0e0;letter-spacing:-0.5px}
 .logo b{color:#4da6ff}
@@ -21,13 +19,11 @@ body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a
 .btn-compile:hover{background:#1a5a99!important}
 .btn-save{background:#0d3b22!important;color:#4dcc88!important;border-color:#1a6644!important}
 kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a3a5a;border-radius:3px;padding:1px 4px;color:#8080a0}
-.asbadge{font-size:11px;color:#3a6a3a;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.asbadge{font-size:11px;color:#3a6a3a;display:flex;align-items:center;gap:4px}
 .asbadge.saved{color:#4dcc88}
 
-/* Layout principal */
 .main{flex:1;min-height:0;display:flex;overflow:hidden}
 
-/* Sidebar */
 .sidebar{width:200px;flex-shrink:0;background:#12122a;border-right:1px solid #2a2a4a;overflow-y:auto;display:flex;flex-direction:column}
 .stitle{padding:9px 12px 5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5060a0;font-weight:600;display:flex;align-items:center;justify-content:space-between}
 .stitle button{font-size:10px;padding:2px 7px;border:1px solid #2a3a6a;border-radius:4px;background:none;color:#5070b0;cursor:pointer;font-family:inherit}
@@ -36,8 +32,6 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .sitem:hover{background:#1e1e3a;color:#e0e0e0}
 .sitem svg{flex-shrink:0;opacity:0.5}
 .ssep{height:1px;background:#2a2a4a;margin:3px 0}
-
-/* Liste docs */
 .ditem{padding:6px 8px 6px 10px;font-size:12px;cursor:pointer;color:#a0a0c0;display:flex;align-items:center;border:none;background:none;width:100%;text-align:left;font-family:inherit}
 .ditem:hover{background:#1e1e3a}
 .dname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px}
@@ -46,15 +40,13 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .dactive{background:#1a2a1a!important;color:#4dcc88!important}
 .ddate{font-size:10px;color:#404060;margin-left:4px;white-space:nowrap}
 
-/* Zone éditeur */
 .ewrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .tabs{flex-shrink:0;display:flex;background:#16213e;border-bottom:1px solid #2a2a4a}
 .tab{padding:8px 18px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#8090b0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;font-family:inherit}
 .tab.active{color:#e0e0e0;border-bottom-color:#4da6ff;font-weight:500}
 
-/* Éditeur CodeMirror */
-.edpane{flex:1;min-height:0;overflow:hidden;display:none}
-.edpane.active{display:flex;flex-direction:column}
+.edpane{flex:1;min-height:0;overflow:hidden;display:none;flex-direction:column}
+.edpane.active{display:flex}
 .CodeMirror{font-size:13.5px!important;font-family:'JetBrains Mono','Fira Code','Consolas',monospace!important;background:#0f0f1e!important;color:#c8c8e8!important;line-height:1.6!important;flex:1;min-height:0}
 .CodeMirror-scroll{height:100%!important}
 .CodeMirror-gutters{background:#12122a!important;border-right:1px solid #2a2a4a!important}
@@ -67,17 +59,14 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .cm-number{color:#ffaa44!important}
 .cm-matchingbracket{background:#1a3a2a!important;outline:none!important}
 
-/* Panneau PDF */
-.pvpane{flex:1;min-height:0;background:#0f0f1e;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center}
+.pvpane{flex:1;min-height:0;display:none;flex-direction:column;overflow:hidden}
 .pvpane.active{display:flex}
-.pvpane svg{opacity:0.12}
-.pvpane p{font-size:14px;color:#505080;line-height:1.7}
-.pvpane .openbtn{padding:10px 22px;background:#0d3b66;color:#4da6ff;border:1px solid #1a5a99;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit;display:none;align-items:center;gap:8px}
-.pvpane .openbtn:hover{background:#1a5a99}
-.pvpane .openbtn.visible{display:flex}
+.pvph{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center;background:#0f0f1e;color:#505080}
+.pvph svg{opacity:0.12}
+.pvph p{font-size:14px;line-height:1.7}
+#pdfframe{flex:1;width:100%;border:none;display:none;background:#fff}
 
-/* Log + status */
-.log{flex-shrink:0;padding:7px 14px;font-size:12px;font-family:monospace;color:#8090a0;border-top:1px solid #2a2a4a;background:#0a0a18;max-height:100px;overflow-y:auto;display:none;white-space:pre-wrap;line-height:1.5}
+.log{flex-shrink:0;padding:7px 14px;font-size:12px;font-family:monospace;color:#8090a0;border-top:1px solid #2a2a4a;background:#0a0a18;max-height:90px;overflow-y:auto;display:none;white-space:pre-wrap;line-height:1.5}
 .log.err{color:#ff6060}
 .log.ok{color:#7ec880}
 .sbar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:4px 14px;font-size:11.5px;color:#505070;border-top:1px solid #2a2a4a;background:#12122a}
@@ -86,7 +75,6 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .dot.err{background:#cc3030}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
 
-/* Modal */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:#16213e;border:1px solid #2a2a4a;border-radius:10px;padding:20px;min-width:300px}
@@ -117,7 +105,11 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       .tex
     </button>
-    <button class="btn-compile" onclick="compile()" id="btn-c">
+    <button onclick="dlPdf()" id="btnpdf" disabled>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      .pdf
+    </button>
+    <button class="btn-compile" onclick="compile()" id="btnc">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Compiler <kbd>Ctrl+↵</kbd>
     </button>
@@ -125,58 +117,37 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 </div>
 
 <div class="main">
-  <!-- Sidebar -->
   <div class="sidebar">
     <div class="stitle">Mes fichiers <button onclick="newDoc()">+ Nouveau</button></div>
     <div id="docslist"></div>
     <div class="ssep"></div>
     <div class="stitle" style="color:#3a4a80">Modèles</div>
-    <button class="sitem" onclick="loadTpl('blank')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Article vide
-    </button>
-    <button class="sitem" onclick="loadTpl('beamer')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>Beamer
-    </button>
+    <button class="sitem" onclick="loadTpl('blank')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Article vide</button>
+    <button class="sitem" onclick="loadTpl('beamer')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>Beamer</button>
     <div class="ssep" style="margin:2px 0"></div>
     <div class="stitle" style="color:#3a4a80;padding-top:4px">Denis Diderot</div>
-    <button class="sitem" onclick="loadTpl('tp')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>TP / Activité
-    </button>
-    <button class="sitem" onclick="loadTpl('eval')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Évaluation
-    </button>
-    <button class="sitem" onclick="loadTpl('corrige')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Corrigé
-    </button>
-    <button class="sitem" onclick="loadTpl('ccf')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>CCF / BTS
-    </button>
+    <button class="sitem" onclick="loadTpl('tp')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>TP / Activité</button>
+    <button class="sitem" onclick="loadTpl('eval')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Évaluation</button>
+    <button class="sitem" onclick="loadTpl('corrige')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Corrigé</button>
+    <button class="sitem" onclick="loadTpl('ccf')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>CCF / BTS</button>
   </div>
 
-  <!-- Zone édition -->
   <div class="ewrap">
     <div class="tabs">
-      <button class="tab active" id="tab-ed" onclick="sw('ed')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Éditeur
-      </button>
-      <button class="tab" id="tab-pv" onclick="sw('pv')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Aperçu PDF
-      </button>
+      <button class="tab active" id="tab-ed" onclick="sw('ed')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Éditeur</button>
+      <button class="tab" id="tab-pv" onclick="sw('pv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Aperçu PDF</button>
     </div>
 
-    <!-- Éditeur -->
     <div class="edpane active" id="pane-ed">
       <textarea id="ed"></textarea>
     </div>
 
-    <!-- PDF / placeholder -->
     <div class="pvpane" id="pane-pv">
-      <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      <p id="pv-msg">Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer le PDF<br><span style="font-size:12px;opacity:0.6">Raccourci : Ctrl+Entrée</span></p>
-      <button class="openbtn" id="openbtn" onclick="openPdf()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        Ouvrir le PDF dans un nouvel onglet
-      </button>
+      <div class="pvph" id="pvph">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <p>Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer l'aperçu<br><span style="font-size:12px;opacity:0.5">Ctrl+Entrée</span></p>
+      </div>
+      <iframe id="pdfframe"></iframe>
     </div>
 
     <div class="log" id="log"></div>
@@ -189,13 +160,6 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
   </div>
 </div>
 
-<!-- Formulaire caché — contourne le CORS -->
-<form id="cform" method="POST" action="https://latexonline.cc/compile" target="_blank" style="display:none">
-  <input type="hidden" name="text" id="csrc">
-  <input type="hidden" name="command" value="pdflatex">
-</form>
-
-<!-- Modal nom -->
 <div class="modal-bg" id="mbg">
   <div class="modal">
     <h3>Sauvegarder le document</h3>
@@ -219,7 +183,6 @@ blank:`\\documentclass[11pt,a4paper]{article}
 \\usepackage[french]{babel}
 \\usepackage{amsmath,amssymb}
 \\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
-
 \\begin{document}
 \\begin{center}\\Large\\textbf{Titre}\\end{center}
 \\section{Introduction}
@@ -248,18 +211,16 @@ tp:`\\documentclass[11pt,a4paper]{article}
 \\usepackage{amsmath,amssymb}
 \\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
 \\usepackage{fancyhdr,enumitem,pifont}
-\\pagestyle{fancy}
-\\renewcommand\\headrulewidth{1pt}
-\\fancyhead[L]{Lycée Denis Diderot}
-\\fancyhead[R]{Classe de Terminale}
+\\pagestyle{fancy}\\renewcommand\\headrulewidth{1pt}
+\\fancyhead[L]{Lycée Denis Diderot}\\fancyhead[R]{Classe de Terminale}
 \\fancyfoot[C]{page \\thepage}\\fancyfoot[R]{2025-26}\\fancyfoot[L]{Alexis RUIZ}
 \\newcommand{\\cadreblanc}[1]{\\medskip\\framebox[\\linewidth][c]{\\rule{0mm}{#1mm}}\\par\\medskip}
 \\begin{document}
-\\begin{center}\\LARGE\\textbf{TP --- Titre du TP}\\end{center}
+\\begin{center}\\LARGE\\textbf{TP --- Titre}\\end{center}
 \\vspace{2mm}\\hrule\\vspace{4mm}
 \\textbf{NOM :\\\\ Prénom :\\\\[2mm]}\\hrule\\vspace{4mm}
 \\ding{202} \\textbf{Objectif}\\\\[3mm]
-Décrire l'objectif.\\vspace{4mm}
+Décrire l'objectif.\\vspace{5mm}
 \\ding{203} \\textbf{Protocole}
 \\begin{enumerate}\\item Étape 1\\item Étape 2\\end{enumerate}
 \\ding{204} \\textbf{Résultats}\\cadreblanc{35}
@@ -338,7 +299,6 @@ ccf:`\\documentclass[11pt,a4paper]{article}
 \\end{document}`
 };
 
-// Storage
 function getDocs(){try{return JSON.parse(localStorage.getItem('ltx_docs')||'[]')}catch{return[]}}
 function saveDocs(d){localStorage.setItem('ltx_docs',JSON.stringify(d))}
 function getLastId(){return localStorage.getItem('ltx_last')}
@@ -346,7 +306,7 @@ function setLastId(id){localStorage.setItem('ltx_last',id)}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmt(ts){const d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
 
-let cm, currentId=null, saveTimer=null;
+let cm, currentId=null, saveTimer=null, pdfBlob=null;
 
 window.addEventListener('load',()=>{
   cm=CodeMirror.fromTextArea(document.getElementById('ed'),{
@@ -358,15 +318,13 @@ window.addEventListener('load',()=>{
       'Cmd-S':(e)=>{e.preventDefault();openSaveModal()}
     }
   });
-  // Hauteur = 100% du parent flex
   cm.setSize('100%','100%');
 
-  const docs=getDocs(), lastId=getLastId();
+  const docs=getDocs(),lastId=getLastId();
   const found=docs.find(d=>d.id===lastId);
-  if(found) openDoc(found.id,false);
-  else if(docs.length) openDoc(docs[0].id,false);
+  if(found)openDoc(found.id,false);
+  else if(docs.length)openDoc(docs[0].id,false);
   else createDoc('TP Terminale',T.tp);
-
   renderDocs();
 
   cm.on('change',()=>{
@@ -375,7 +333,6 @@ window.addEventListener('load',()=>{
     clearTimeout(saveTimer);
     saveTimer=setTimeout(autoSave,2000);
   });
-
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();openSaveModal();}
   });
@@ -388,25 +345,36 @@ window.addEventListener('load',()=>{
   });
 });
 
-// Compilation : form POST vers target="_blank" → PDF dans nouvel onglet
-function compile(){
-  document.getElementById('csrc').value=cm.getValue();
+async function compile(){
+  const src=cm.getValue();
+  const btn=document.getElementById('btnc');
+  btn.disabled=true;
   setStatus('spin','Compilation en cours...');
-  document.getElementById('cform').submit();
-  // Après 2s on considère que c'est parti
-  setTimeout(()=>{
-    setStatus('ok','PDF compilé — voir le nouvel onglet');
-    showLog('PDF envoyé à latexonline.cc — ouverture dans un nouvel onglet.', false);
-    document.getElementById('openbtn').classList.add('visible');
-    document.getElementById('pv-msg').innerHTML='PDF généré.<br><span style="font-size:12px;opacity:0.6">Utiliser le bouton ci-dessous ou télécharger le .tex</span>';
+  document.getElementById('log').style.display='none';
+  try{
+    const fd=new FormData();
+    fd.append('filecontents[]',src);
+    fd.append('filename[]','document.tex');
+    fd.append('engine','pdflatex');
+    fd.append('return','pdf');
+    const res=await fetch('https://texlive.net/cgi-bin/latexcgi',{method:'POST',body:fd});
+    if(!res.ok){const t=await res.text().catch(()=>'');throw new Error('Erreur HTTP '+res.status+'
+'+t.slice(0,400));}
+    const blob=await res.blob();
+    if(!blob.type.includes('pdf')){const t=await blob.text();throw new Error(t.slice(0,600)||'Erreur LaTeX — vérifier la syntaxe.');}
+    pdfBlob=blob;
+    const url=URL.createObjectURL(blob);
+    const fr=document.getElementById('pdfframe');
+    fr.src=url;fr.style.display='block';
+    document.getElementById('pvph').style.display='none';
+    document.getElementById('btnpdf').disabled=false;
+    setStatus('ok','Compilation réussie ✓');
+    showLog('PDF généré via texlive.net.',false);
     sw('pv');
-  },2000);
-}
-
-// Ouvre une nouvelle compilation dans un onglet
-function openPdf(){
-  document.getElementById('csrc').value=cm.getValue();
-  document.getElementById('cform').submit();
+  }catch(e){
+    setStatus('err','Erreur de compilation');
+    showLog(e.message||String(e),true);
+  }finally{btn.disabled=false;}
 }
 
 function autoSave(){
@@ -415,10 +383,14 @@ function autoSave(){
   if(idx===-1)return;
   docs[idx].content=cm.getValue();docs[idx].updatedAt=Date.now();
   saveDocs(docs);
-  document.getElementById('astxt').textContent='Sauvegardé';
-  document.getElementById('asbadge').className='asbadge saved';
-  setTimeout(()=>{document.getElementById('astxt').textContent='—';document.getElementById('asbadge').className='asbadge';},3000);
+  setBadge('Sauvegardé',true);
   renderDocs();
+}
+
+function setBadge(txt,ok){
+  document.getElementById('astxt').textContent=txt;
+  document.getElementById('asbadge').className='asbadge'+(ok?' saved':'');
+  if(ok)setTimeout(()=>{document.getElementById('astxt').textContent='—';document.getElementById('asbadge').className='asbadge';},3000);
 }
 
 function createDoc(name,content){
@@ -435,8 +407,11 @@ function openDoc(id,save=true){
   cm.setValue(doc.content||'');cm.clearHistory();
   document.getElementById('curname').textContent='📄 '+doc.name;
   renderDocs();sw('ed');
-  document.getElementById('openbtn').classList.remove('visible');
-  document.getElementById('pv-msg').innerHTML='Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer le PDF<br><span style="font-size:12px;opacity:0.6">Raccourci : Ctrl+Entrée</span>';
+  pdfBlob=null;
+  document.getElementById('btnpdf').disabled=true;
+  document.getElementById('pdfframe').style.display='none';
+  document.getElementById('pdfframe').src='';
+  document.getElementById('pvph').style.display='flex';
 }
 
 function deleteDoc(id,e){
@@ -452,13 +427,9 @@ function deleteDoc(id,e){
 function newDoc(){createDoc('Sans titre',T.blank);}
 
 function renderDocs(){
-  const docs=getDocs();
-  document.getElementById('docslist').innerHTML=docs.map(d=>`
+  document.getElementById('docslist').innerHTML=getDocs().map(d=>`
     <div class="ditem ${d.id===currentId?'dactive':''}" onclick="openDoc('${d.id}')">
-      <span class="dname">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        ${esc(d.name)}
-      </span>
+      <span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(d.name)}</span>
       <span class="ddate">${fmt(d.updatedAt)}</span>
       <button class="ddel" onclick="deleteDoc('${d.id}',event)">✕</button>
     </div>`).join('');
@@ -479,15 +450,12 @@ function confirmSave(){
   const docs=getDocs(),idx=docs.findIndex(d=>d.id===currentId);
   if(idx!==-1){docs[idx].name=name;docs[idx].content=cm.getValue();docs[idx].updatedAt=Date.now();saveDocs(docs);}
   document.getElementById('curname').textContent='📄 '+name;
-  renderDocs();closeMod();
-  document.getElementById('astxt').textContent='Sauvegardé';
-  document.getElementById('asbadge').className='asbadge saved';
-  setTimeout(()=>{document.getElementById('astxt').textContent='—';document.getElementById('asbadge').className='asbadge';},3000);
+  renderDocs();setBadge('Sauvegardé',true);closeMod();
 }
 
 function loadTpl(name){
   if(!T[name])return;
-  if(cm.getValue().trim()&&!confirm('Remplacer le contenu actuel par ce modèle ?'))return;
+  if(cm.getValue().trim()&&!confirm('Remplacer le contenu actuel ?'))return;
   cm.setValue(T[name]);sw('ed');
 }
 
@@ -498,14 +466,13 @@ function sw(tab){
   document.getElementById('tab-pv').classList.toggle('active',tab==='pv');
   if(tab==='ed')setTimeout(()=>cm.refresh(),10);
 }
-
 function setStatus(s,msg){
   document.getElementById('dot').className='dot'+(s==='spin'?' spin':s==='err'?' err':'');
   document.getElementById('stxt').textContent=msg;
 }
-function showLog(txt,isErr){
+function showLog(txt,err){
   const l=document.getElementById('log');
-  l.style.display='block';l.className='log'+(isErr?' err':' ok');l.textContent=txt;
+  l.style.display='block';l.className='log'+(err?' err':' ok');l.textContent=txt;
 }
 function dlTex(){
   const cur=getDocs().find(d=>d.id===currentId);
@@ -513,6 +480,13 @@ function dlTex(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([cm.getValue()],{type:'text/plain'}));
   a.download=name+'.tex';a.click();
+}
+function dlPdf(){
+  if(!pdfBlob)return;
+  const cur=getDocs().find(d=>d.id===currentId);
+  const name=(cur?cur.name:'document').replace(/[^a-z0-9_\-]/gi,'_');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(pdfBlob);a.download=name+'.pdf';a.click();
 }
 </script>
 </body>
