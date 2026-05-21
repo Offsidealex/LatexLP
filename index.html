@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LaTeX Studio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column}
@@ -24,10 +25,54 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 
 .main{flex:1;min-height:0;display:flex;overflow:hidden}
 
-.sidebar{width:200px;flex-shrink:0;background:#12122a;border-right:1px solid #2a2a4a;overflow-y:auto;display:flex;flex-direction:column}
-.stitle{padding:9px 12px 5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5060a0;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.sidebar{width:200px;flex-shrink:0;background:#12122a;border-right:1px solid #2a2a4a;overflow-y:auto;display:flex;flex-direction:column;min-width:140px}
+.sb-resizer{flex:0 0 5px;background:#12122a;cursor:col-resize;position:relative;transition:background 0.15s;flex-shrink:0}
+.sb-resizer:hover,.sb-resizer.dragging{background:#1a5a99}
+.sb-resizer::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:24px;background:#3a3a5a;box-shadow:2px 0 0 #3a3a5a,-2px 0 0 #3a3a5a;opacity:0.7}
+.sb-resizer:hover::after,.sb-resizer.dragging::after{background:#7ec4ff;box-shadow:2px 0 0 #7ec4ff,-2px 0 0 #7ec4ff;opacity:1}
+.stitle{padding:9px 12px 5px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#5060a0;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.stitle .stbtns{display:flex;gap:4px}
 .stitle button{font-size:10px;padding:2px 7px;border:1px solid #2a3a6a;border-radius:4px;background:none;color:#5070b0;cursor:pointer;font-family:inherit}
 .stitle button:hover{background:#1a2a4a;color:#9090d0}
+
+/* Folder tree */
+.fldr{user-select:none}
+.fldr-hdr{display:flex;align-items:center;gap:5px;padding:5px 10px 5px 8px;font-size:11.5px;color:#90a0c8;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;font-weight:500}
+.fldr-hdr:hover{background:#1a1a3a;color:#b0c0e0}
+.fldr-hdr.empty{color:#5a6080}
+.fldr-hdr .farrow{display:inline-block;width:9px;font-size:9px;color:#5070a0;flex-shrink:0;transition:transform 0.15s}
+.fldr-hdr.collapsed .farrow{transform:rotate(-90deg)}
+.fldr-hdr .ficon{flex-shrink:0;opacity:0.6}
+.fldr-hdr .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fldr-hdr .fcount{font-size:10px;color:#4a5a80;font-family:monospace;padding-left:4px}
+.fldr-hdr .fdel{opacity:0;font-size:11px;color:#cc4444;padding:0 3px;background:none;border:none;cursor:pointer;line-height:1}
+.fldr-hdr .fdel.fadd{color:#7ec880}
+.fldr-hdr:hover .fdel{opacity:0.7}
+.fldr-hdr .fdel:hover{opacity:1}
+.fldr.collapsed .fldr-body{display:none}
+.fldr-body{padding-left:8px;border-left:1px solid #1e1e3a;margin-left:14px}
+.fldr-body.dragover{background:#1a2a4a;border-left-color:#4da6ff}
+
+/* Projects (Overleaf-like containers) */
+.proj{margin:2px 0}
+.proj-hdr{display:flex;align-items:center;gap:5px;padding:4px 8px;font-size:11.5px;color:#a0b8e0;cursor:pointer;background:#141a30;border:1px solid #1e2a4a;border-radius:5px}
+.proj-hdr:hover{background:#1a223e}
+.proj-hdr .farrow{display:inline-block;width:9px;font-size:9px;color:#5070a0;flex-shrink:0;transition:transform 0.15s}
+.proj-hdr.collapsed .farrow{transform:rotate(-90deg)}
+.proj-hdr .ficon{flex-shrink:0;color:#7ec4ff;opacity:0.7}
+.proj-hdr .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.proj-hdr .fcount{font-size:10px;color:#5a7aa0;font-family:monospace;padding-left:4px}
+.proj-hdr .fdel{opacity:0;font-size:11px;color:#cc4444;padding:0 3px;background:none;border:none;cursor:pointer;line-height:1}
+.proj-hdr:hover .fdel{opacity:0.7}
+.proj-hdr .fdel:hover{opacity:1}
+.proj.collapsed .proj-body{display:none}
+.proj-body{padding-top:2px;padding-bottom:2px;padding-left:6px;margin-left:8px;border-left:1px solid #1a223e}
+.pdir{padding:3px 6px 3px 0;font-size:11px;color:#7a8aa8;display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;font-weight:500}
+.pitem-asset{display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11.5px;color:#5a6a90;opacity:0.85}
+.pitem-asset:hover{opacity:1;color:#7a8ab0}
+.passet-ic{font-size:11px;flex-shrink:0}
+.passet-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;font-size:11px}
+.mainbadge{display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;border-radius:6px;background:#0d3b66;color:#7ec4ff;margin-left:6px;text-transform:uppercase;letter-spacing:0.5px;vertical-align:middle}
 .sitem{padding:7px 12px;font-size:13px;cursor:pointer;color:#a0a0c0;display:flex;align-items:center;gap:7px;border:none;background:none;width:100%;text-align:left;font-family:inherit}
 .sitem:hover{background:#1e1e3a;color:#e0e0e0}
 .sitem svg{flex-shrink:0;opacity:0.5}
@@ -41,14 +86,28 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .ddate{font-size:10px;color:#404060;margin-left:4px;white-space:nowrap}
 
 .ewrap{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.tabs{flex-shrink:0;display:flex;background:#16213e;border-bottom:1px solid #2a2a4a}
-.tab{padding:8px 18px;font-size:13px;cursor:pointer;border:none;background:transparent;color:#8090b0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;font-family:inherit}
-.tab.active{color:#e0e0e0;border-bottom-color:#4da6ff;font-weight:500}
 
-.edpane{flex:1;min-height:0;overflow:hidden;display:none;flex-direction:column}
-.edpane.active{display:flex}
-.CodeMirror{font-size:13.5px!important;font-family:'JetBrains Mono','Fira Code','Consolas',monospace!important;background:#0f0f1e!important;color:#c8c8e8!important;line-height:1.6!important;flex:1;min-height:0}
-.CodeMirror-scroll{height:100%!important}
+.split{flex:1;min-height:0;display:flex;overflow:hidden}
+.edpane{position:relative;flex:1 1 50%;min-width:120px;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#0f0f1e}
+.pvpane{position:relative;flex:1 1 50%;min-width:120px;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#262626;border-left:1px solid #2a2a4a}
+.resizer{flex:0 0 5px;background:#16213e;cursor:col-resize;position:relative;transition:background 0.15s}
+.resizer:hover,.resizer.dragging{background:#1a5a99}
+.resizer::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:1px;height:32px;background:#3a3a5a;box-shadow:3px 0 0 #3a3a5a,-3px 0 0 #3a3a5a}
+.resizer:hover::after,.resizer.dragging::after{background:#7ec4ff;box-shadow:3px 0 0 #7ec4ff,-3px 0 0 #7ec4ff}
+.dragging-overlay{position:fixed;inset:0;z-index:99;cursor:col-resize}
+
+.paneHdr{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:6px 12px;background:#16213e;border-bottom:1px solid #2a2a4a;font-size:11.5px;color:#7090b0;text-transform:uppercase;letter-spacing:0.6px;font-weight:600;height:30px}
+.paneHdr svg{opacity:0.55}
+.paneHdr .phright{margin-left:auto;display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;color:#5070a0}
+.paneHdr button.phbtn{font-size:11px;padding:3px 9px;border:1px solid #2a3a5a;border-radius:5px;background:#0f1a30;color:#90a8c8;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px}
+.paneHdr button.phbtn:hover{background:#1a2a4a;color:#c0d0e8}
+.paneHdr button.phbtn:disabled{opacity:0.35;cursor:not-allowed}
+.paneHdr .pgnum{font-family:monospace;font-size:11px;color:#7090b0;padding:0 4px}
+
+.edbody{position:relative;flex:1;min-height:0}
+.pvbody{position:relative;flex:1;min-height:0;overflow:hidden;background:#525659}
+.CodeMirror{font-size:13.5px!important;font-family:"JetBrains Mono","Fira Code","Consolas",monospace!important;background:#0f0f1e!important;color:#c8c8e8!important;line-height:1.6!important;position:absolute!important;top:0;left:0;right:0;bottom:0;height:100%!important}
+.CodeMirror-scroll{height:100%!important;overflow-y:auto!important}
 .CodeMirror-gutters{background:#12122a!important;border-right:1px solid #2a2a4a!important}
 .CodeMirror-linenumber{color:#404060!important;padding:0 8px!important}
 .CodeMirror-cursor{border-left:2px solid #4da6ff!important}
@@ -59,12 +118,86 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .cm-number{color:#ffaa44!important}
 .cm-matchingbracket{background:#1a3a2a!important;outline:none!important}
 
-.pvpane{flex:1;min-height:0;display:none;flex-direction:column;overflow:hidden}
-.pvpane.active{display:flex}
-.pvph{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center;background:#0f0f1e;color:#505080}
-.pvph svg{opacity:0.12}
-.pvph p{font-size:14px;line-height:1.7}
-#pdfframe{flex:1;width:100%;border:none;display:none;background:#fff}
+/* ============ Syntax palettes ============ */
+/* Default palette is already set above. The following body classes
+   override the cm-* colors to provide named themes. */
+
+body.palette-monokai .cm-keyword,body.palette-monokai .cm-tag{color:#f92672!important;font-weight:500}
+body.palette-monokai .cm-string{color:#e6db74!important}
+body.palette-monokai .cm-comment{color:#75715e!important;font-style:italic}
+body.palette-monokai .cm-number{color:#ae81ff!important}
+body.palette-monokai .cm-matchingbracket{background:#3a3a2a!important}
+
+body.palette-dracula .cm-keyword,body.palette-dracula .cm-tag{color:#ff79c6!important;font-weight:500}
+body.palette-dracula .cm-string{color:#f1fa8c!important}
+body.palette-dracula .cm-comment{color:#6272a4!important;font-style:italic}
+body.palette-dracula .cm-number{color:#8be9fd!important}
+body.palette-dracula .cm-matchingbracket{background:#3a3a5a!important}
+
+body.palette-solarized .cm-keyword,body.palette-solarized .cm-tag{color:#b58900!important;font-weight:500}
+body.palette-solarized .cm-string{color:#2aa198!important}
+body.palette-solarized .cm-comment{color:#586e75!important;font-style:italic}
+body.palette-solarized .cm-number{color:#cb4b16!important}
+body.palette-solarized .cm-matchingbracket{background:#073642!important}
+
+body.palette-nord .cm-keyword,body.palette-nord .cm-tag{color:#81a1c1!important;font-weight:500}
+body.palette-nord .cm-string{color:#a3be8c!important}
+body.palette-nord .cm-comment{color:#616e88!important;font-style:italic}
+body.palette-nord .cm-number{color:#d08770!important}
+body.palette-nord .cm-matchingbracket{background:#3b4252!important}
+
+body.palette-rose .cm-keyword,body.palette-rose .cm-tag{color:#c4a7e7!important;font-weight:500}
+body.palette-rose .cm-string{color:#ebbcba!important}
+body.palette-rose .cm-comment{color:#6e6a86!important;font-style:italic}
+body.palette-rose .cm-number{color:#f6c177!important}
+body.palette-rose .cm-matchingbracket{background:#393552!important}
+
+body.palette-warm .cm-keyword,body.palette-warm .cm-tag{color:#ff9e64!important;font-weight:500}
+body.palette-warm .cm-string{color:#9ece6a!important}
+body.palette-warm .cm-comment{color:#565f89!important;font-style:italic}
+body.palette-warm .cm-number{color:#bb9af7!important}
+body.palette-warm .cm-matchingbracket{background:#3a2a5a!important}
+
+/* Light-mode-friendly palettes */
+body.light.palette-github .cm-keyword,body.light.palette-github .cm-tag{color:#cf222e!important;font-weight:500}
+body.light.palette-github .cm-string{color:#0a3069!important}
+body.light.palette-github .cm-comment{color:#6e7781!important;font-style:italic}
+body.light.palette-github .cm-number{color:#0550ae!important}
+body.light.palette-github .cm-matchingbracket{background:#fff8c5!important}
+
+body.light.palette-solarized-light .cm-keyword,body.light.palette-solarized-light .cm-tag{color:#b58900!important;font-weight:500}
+body.light.palette-solarized-light .cm-string{color:#2aa198!important}
+body.light.palette-solarized-light .cm-comment{color:#93a1a1!important;font-style:italic}
+body.light.palette-solarized-light .cm-number{color:#cb4b16!important}
+body.light.palette-solarized-light .cm-matchingbracket{background:#eee8d5!important}
+
+/* Palette popover */
+.pal-pop{position:absolute;top:calc(100% + 6px);right:0;background:#0f0f1e;border:1px solid #2a2a4a;border-radius:8px;padding:8px;width:280px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:none}
+.pal-pop.show{display:block}
+.pal-wrap{position:relative}
+body.light .pal-pop{background:#ffffff;border-color:#d8d8e4;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+.pal-title{font-size:10px;text-transform:uppercase;letter-spacing:0.7px;color:#5060a0;font-weight:600;padding:4px 6px 8px}
+body.light .pal-title{color:#5a6080}
+.pal-opt{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:5px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
+.pal-opt:hover{background:#1a1a3a}
+body.light .pal-opt:hover{background:#eef0f6}
+.pal-opt.active{background:#0d3b66;border-color:#1a5a99}
+body.light .pal-opt.active{background:#e0e8f5;border-color:#a8c0d8}
+.pal-name{flex:1;font-size:12px;color:#c0c0d0;font-weight:500}
+body.light .pal-name{color:#1a1a2e}
+.pal-swatch{display:flex;gap:2px;flex-shrink:0}
+.pal-swatch span{width:14px;height:14px;border-radius:2px;display:inline-block}
+.pal-check{font-size:13px;color:#7ec4ff;width:14px;text-align:center}
+body.light .pal-check{color:#1a5a99}
+
+.pvph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center;background:#262626;color:#7a7a90}
+.pvph svg{opacity:0.2}
+.pvph p{font-size:13px;line-height:1.7}
+.pvph .kbdhint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#5a5a70}
+#pdfframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#525659}
+.pverr{position:absolute;inset:0;display:none;background:#262626;color:#ff8080;padding:24px;font-family:monospace;font-size:12.5px;line-height:1.6;overflow-y:auto;white-space:pre-wrap}
+.pverr.show{display:block}
+.pverr .pverr-title{color:#ff6060;font-weight:bold;margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:0.8px}
 
 .log{flex-shrink:0;padding:7px 14px;font-size:12px;font-family:monospace;color:#8090a0;border-top:1px solid #2a2a4a;background:#0a0a18;max-height:90px;overflow-y:auto;display:none;white-space:pre-wrap;line-height:1.5}
 .log.err{color:#ff6060}
@@ -86,9 +219,180 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .mcancel{background:#1a1a2e;color:#8090b0}
 .mok{background:#0d3b22;color:#4dcc88;border-color:#1a6644!important}
 
+.btn-gh{background:#1a1a2e!important;color:#c0c0d0!important}
+.btn-gh.connected{background:#1a1a2e!important;color:#9aa0aa!important;border-color:#3a3a5a!important}
+.btn-gh.syncing{color:#cc8800!important;border-color:#664a1a!important}
+.btn-gh.err{color:#ff6060!important;border-color:#5a2a2a!important}
+.ghdot{width:6px;height:6px;border-radius:50%;background:#5a5a70;flex-shrink:0;margin-left:1px}
+.ghdot.ok{background:#4dcc88}
+.ghdot.spin{background:#cc8800;animation:blink 0.7s infinite}
+.ghdot.err{background:#cc3030}
+
+.dsync{font-size:10px;margin-right:4px;flex-shrink:0;width:11px;text-align:center}
+.dsync.ok{color:#4dcc88}
+.dsync.dirty{color:#cc8800}
+.dsync.spin{color:#cc8800;animation:blink 0.7s infinite}
+.dsync.err{color:#cc3030}
+.dsync.off{color:#404060}
+
+/* GitHub modal */
+.ghmodal{background:#16213e;border:1px solid #2a2a4a;border-radius:10px;padding:0;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto}
+.ghmodal-hdr{padding:16px 20px 12px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:10px}
+.ghmodal-hdr svg{flex-shrink:0}
+.ghmodal-hdr h3{font-size:15px;font-weight:600;color:#e0e0e0;margin:0}
+.ghmodal-hdr .ghst{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:10px;background:#0f0f1e;color:#7a8aa0}
+.ghmodal-hdr .ghst.ok{background:#0d3b22;color:#4dcc88}
+.ghmodal-hdr .ghst.err{background:#3b0d0d;color:#ff8080}
+.ghmodal-body{padding:16px 20px 4px}
+.ghfield{margin-bottom:14px}
+.ghfield label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#7090b0;margin-bottom:4px;font-weight:600}
+.ghfield .gfhint{font-size:11px;color:#5a6a8a;margin-top:3px;line-height:1.5}
+.ghfield input[type=text],.ghfield input[type=password]{width:100%;padding:8px 10px;background:#0f0f1e;border:1px solid #3a3a5a;border-radius:6px;color:#e0e0e0;font-family:monospace;font-size:12.5px;outline:none}
+.ghfield input:focus{border-color:#4da6ff}
+.ghrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ghtoggle{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#0f0f1e;border:1px solid #2a2a4a;border-radius:6px;cursor:pointer;font-size:13px;color:#c0c0d0}
+.ghtoggle input{margin:0}
+.ghactions{padding:12px 20px 16px;border-top:1px solid #2a2a4a;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ghactions .ghspacer{flex:1}
+.ghactions button{padding:7px 14px;font-size:12px;border-radius:6px;border:1px solid #3a3a5a;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;background:#1a1a2e;color:#c0c0d0}
+.ghactions button:hover{background:#2a2a4a}
+.ghactions button:disabled{opacity:0.4;cursor:not-allowed}
+.ghactions .ghprim{background:#0d3b22;color:#4dcc88;border-color:#1a6644}
+.ghactions .ghprim:hover{background:#155a33}
+.ghactions .ghpull{background:#0d2c5a;color:#8ab8ff;border-color:#1a4a99}
+.ghactions .ghpull:hover{background:#1a3a7a}
+.ghactions .ghdanger{color:#ff6060;border-color:#5a2a2a}
+.ghactions .ghdanger:hover{background:#3a1a1a}
+.ghlog{margin:0 20px 16px;padding:8px 12px;background:#0a0a18;border:1px solid #2a2a4a;border-radius:6px;font-family:monospace;font-size:11.5px;color:#8090a0;max-height:120px;overflow-y:auto;line-height:1.5;white-space:pre-wrap;display:none}
+.ghlog.show{display:block}
+.ghlog.err{color:#ff8080}
+.ghlog.ok{color:#7ec880}
+
+/* Drag-and-drop overlay for file import */
+.dropzone{position:fixed;inset:0;background:rgba(13,59,102,0.85);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;pointer-events:none}
+.dropzone.show{display:flex}
+.dropzone .dz-card{background:#16213e;border:2px dashed #4da6ff;border-radius:14px;padding:48px 64px;text-align:center;color:#e0e0e0}
+.dropzone svg{opacity:0.7;margin-bottom:12px}
+.dropzone h2{font-size:22px;font-weight:600;margin-bottom:6px}
+.dropzone p{font-size:13px;color:#90a8c8}
+
+/* Folder picker in save modal */
+.fpick{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;margin-bottom:2px}
+.fpick button{font-size:11px;padding:4px 9px;border:1px solid #2a3a5a;border-radius:14px;background:#0f0f1e;color:#90a0c0;cursor:pointer;font-family:inherit}
+.fpick button:hover{background:#1a2a4a;color:#c0d0e8}
+.fpick button.active{background:#0d3b66;color:#7ec4ff;border-color:#1a5a99}
+.fpick .fpnew{border-style:dashed;color:#5a7a9a}
+
+.modal-lg{min-width:380px}
+.modal label.flbl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#7090b0;margin-top:12px;margin-bottom:4px;font-weight:600}
+
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:#0a0a18}
 ::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:3px}
+
+/* ============ LIGHT THEME ============ */
+body.light{background:#f5f5fa;color:#1a1a2e}
+body.light .hdr{background:#ffffff;border-bottom-color:#d8d8e4}
+body.light .logo{color:#1a1a2e}
+body.light .logo b{color:#1a5a99}
+body.light .tbr button{background:#ffffff;border-color:#d0d0e0;color:#3a3a5a}
+body.light .tbr button:hover{background:#eef0f6;color:#1a1a2e}
+body.light .tbr button kbd{background:#f0f0f5;border-color:#d0d0e0;color:#7a7a90}
+body.light .btn-compile{background:#1a5a99!important;color:#ffffff!important;border-color:#1a5a99!important}
+body.light .btn-compile:hover{background:#0d3b66!important}
+body.light .btn-save{background:#e6f5ec!important;color:#1a6644!important;border-color:#a8d4be!important}
+body.light .btn-save:hover{background:#cce8d8!important}
+body.light .btn-gh{background:#ffffff!important;color:#3a3a5a!important;border-color:#d0d0e0!important}
+body.light .btn-gh.connected{color:#1a6644!important;border-color:#a8d4be!important}
+body.light .asbadge{color:#a0a0aa}
+body.light .asbadge.saved{color:#1a8a4a}
+body.light .sidebar{background:#ececf5;border-right-color:#d8d8e4}
+body.light .sb-resizer{background:#ececf5}
+body.light .sb-resizer::after{background:#c0c0d0;box-shadow:2px 0 0 #c0c0d0,-2px 0 0 #c0c0d0}
+body.light .stitle{color:#5a6080}
+body.light .stitle button{border-color:#c0c8e0;color:#3a5a99}
+body.light .stitle button:hover{background:#d8e0f0;color:#1a3a99}
+body.light .sitem{color:#3a3a5a}
+body.light .sitem:hover{background:#d8e0f0;color:#1a1a2e}
+body.light .ssep{background:#d0d0e0}
+body.light .ditem{color:#3a3a5a}
+body.light .ditem:hover{background:#d8e0f0}
+body.light .ditem.dactive{background:#cce8d8!important;color:#1a6644!important}
+body.light .ddate{color:#a0a0b0}
+body.light .fldr-hdr{color:#3a5a99}
+body.light .fldr-hdr:hover{background:#d8e0f0;color:#1a3a99}
+body.light .fldr-hdr.empty{color:#9090a0}
+body.light .fldr-hdr .farrow{color:#5070a0}
+body.light .fldr-hdr .fcount{color:#7a8aa0}
+body.light .fldr-body{border-left-color:#d0d0e0}
+body.light .fldr-body.dragover{background:#cce0f5;border-left-color:#1a5a99}
+body.light .proj-hdr{background:#e0e8f5;border-color:#c0c8e0;color:#1a3a66}
+body.light .proj-hdr:hover{background:#d0d8e8}
+body.light .proj-hdr .ficon{color:#1a5a99}
+body.light .proj-body{border-left-color:#d0d0e0}
+body.light .pdir{color:#5a6a8a}
+body.light .pitem-asset{color:#7a7a90}
+body.light .pitem-asset:hover{color:#3a3a5a}
+body.light .mainbadge{background:#cce8d8;color:#1a6644}
+body.light .paneHdr{background:#ffffff;border-bottom-color:#d8d8e4;color:#3a5a99}
+body.light .paneHdr .phright{color:#7a8aa0}
+body.light .paneHdr button.phbtn{background:#f5f7fa;border-color:#d0d0e0;color:#3a5a99}
+body.light .paneHdr button.phbtn:hover{background:#e0e8f0}
+body.light .edpane{background:#ffffff}
+body.light .pvpane{background:#525659;border-left-color:#d8d8e4}
+body.light .resizer{background:#ffffff}
+body.light .resizer::after{background:#c0c0d0;box-shadow:3px 0 0 #c0c0d0,-3px 0 0 #c0c0d0}
+body.light .pvph{background:#e8e8ee;color:#7a7a90}
+body.light .pverr{background:#fff5f5;color:#aa3030}
+body.light .pverr .pverr-title{color:#cc3030}
+body.light .CodeMirror{background:#ffffff!important;color:#1a1a2e!important}
+body.light .CodeMirror-gutters{background:#f5f5fa!important;border-right-color:#d8d8e4!important}
+body.light .CodeMirror-linenumber{color:#a0a0b0!important}
+body.light .CodeMirror-cursor{border-left-color:#1a5a99!important}
+body.light .CodeMirror-selected{background:#cce0f5!important}
+body.light .cm-keyword,body.light .cm-tag{color:#1a5a99!important}
+body.light .cm-string{color:#0a7a3a!important}
+body.light .cm-comment{color:#9090a0!important}
+body.light .cm-number{color:#cc6600!important}
+body.light .cm-matchingbracket{background:#cce8d8!important}
+body.light .sbar{background:#ececf5;border-top-color:#d8d8e4;color:#7a7a90}
+body.light .log{background:#f0f0f5;border-top-color:#d8d8e4;color:#5a5a70}
+body.light .log.err{color:#cc3030}
+body.light .log.ok{color:#0a7a3a}
+body.light .dot{background:#1a8a4a}
+body.light .dot.spin{background:#cc6600}
+body.light .dot.err{background:#cc3030}
+body.light .modal-bg{background:rgba(40,40,60,0.45)}
+body.light .modal,body.light .ghmodal{background:#ffffff;border-color:#d8d8e4}
+body.light .modal h3{color:#1a1a2e}
+body.light .modal input,body.light .ghfield input{background:#ffffff;border-color:#d0d0e0;color:#1a1a2e}
+body.light .modal input:focus,body.light .ghfield input:focus{border-color:#1a5a99}
+body.light .mbtns button{border-color:#d0d0e0}
+body.light .mcancel{background:#f5f5fa;color:#5a5a70}
+body.light .mok{background:#e6f5ec;color:#1a6644;border-color:#a8d4be!important}
+body.light .ghmodal-hdr{border-bottom-color:#d8d8e4}
+body.light .ghmodal-hdr h3{color:#1a1a2e}
+body.light .ghmodal-hdr svg path{fill:#1a1a2e}
+body.light .ghmodal-hdr .ghst{background:#f0f0f5;color:#5a5a70}
+body.light .ghmodal-hdr .ghst.ok{background:#e6f5ec;color:#1a6644}
+body.light .ghfield label{color:#3a5a99}
+body.light .ghfield .gfhint{color:#7a7a90}
+body.light .ghtoggle{background:#f5f5fa;border-color:#d8d8e4;color:#3a3a5a}
+body.light .ghactions{border-top-color:#d8d8e4}
+body.light .ghactions button{background:#f5f5fa;border-color:#d0d0e0;color:#3a3a5a}
+body.light .ghactions button:hover{background:#e8e8ee}
+body.light .ghactions .ghprim{background:#e6f5ec;color:#1a6644;border-color:#a8d4be}
+body.light .ghactions .ghpull{background:#e0e8f5;color:#1a5a99;border-color:#a8c0d8}
+body.light .ghlog{background:#f0f0f5;border-color:#d8d8e4;color:#5a5a70}
+body.light .fpick button{background:#ffffff;border-color:#d0d0e0;color:#3a5a99}
+body.light .fpick button:hover{background:#e8e8f0;color:#1a3a99}
+body.light .fpick button.active{background:#e0e8f5;color:#1a5a99;border-color:#a8c0d8}
+body.light .dropzone{background:rgba(26,90,153,0.85)}
+body.light .dropzone .dz-card{background:#ffffff;color:#1a1a2e}
+body.light .dropzone p{color:#5a6a8a}
+body.light textarea{background:#f5f5fa;color:#1a1a2e}
+body.light::-webkit-scrollbar-track{background:#e8e8ee}
+body.light ::-webkit-scrollbar-thumb{background:#c0c0d0}
 </style>
 </head>
 <body>
@@ -97,6 +401,23 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
   <span class="logo">La<b>TeX</b> Studio</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
+    <div class="pal-wrap" style="display:inline-block;position:relative">
+      <button onclick="togglePalettePop(event)" id="paletteBtn" title="Palette de couleurs" style="padding:5px 9px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+      </button>
+      <div class="pal-pop" id="palPop">
+        <div class="pal-title">Palette de couleurs</div>
+        <div id="palList"></div>
+      </div>
+    </div>
+    <button onclick="toggleTheme()" id="themeBtn" title="Basculer le thème clair/foncé" style="padding:5px 9px">
+      <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="btn-gh" onclick="openGhModal()" id="ghBtn" title="Synchronisation GitHub">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.1-.4-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.6-2.8 5.6-5.5 5.9.5.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+      <span id="ghBtnLabel">GitHub</span>
+      <span id="ghBtnDot" class="ghdot"></span>
+    </button>
     <button class="btn-save" onclick="openSaveModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Sauver <kbd>Ctrl+S</kbd>
@@ -117,8 +438,15 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 </div>
 
 <div class="main">
-  <div class="sidebar">
-    <div class="stitle">Mes fichiers <button onclick="newDoc()">+ Nouveau</button></div>
+  <div class="sidebar" id="sidebar">
+    <div class="stitle">Mes fichiers
+      <div class="stbtns">
+        <button onclick="document.getElementById('fileImport').click()" title="Importer .tex ou .zip">↑ Importer</button>
+        <button onclick="newFolderPrompt()" title="Nouveau dossier">+ Dossier</button>
+        <button onclick="newDoc()" title="Nouveau document">+ Doc</button>
+      </div>
+    </div>
+    <input type="file" id="fileImport" multiple accept=".tex,.zip" style="display:none" onchange="importFiles(this.files);this.value=''">
     <div id="docslist"></div>
     <div class="ssep"></div>
     <div class="stitle" style="color:#3a4a80">Modèles</div>
@@ -131,39 +459,136 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
     <button class="sitem" onclick="loadTpl('corrige')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>Corrigé</button>
     <button class="sitem" onclick="loadTpl('ccf')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>CCF / BTS</button>
   </div>
+  <div class="sb-resizer" id="sbResizer" title="Glisser pour redimensionner la barre latérale"></div>
 
   <div class="ewrap">
-    <div class="tabs">
-      <button class="tab active" id="tab-ed" onclick="sw('ed')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Éditeur</button>
-      <button class="tab" id="tab-pv" onclick="sw('pv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Aperçu PDF</button>
-    </div>
-
-    <div class="edpane active" id="pane-ed">
-      <textarea id="ed"></textarea>
-    </div>
-
-    <div class="pvpane" id="pane-pv">
-      <div class="pvph" id="pvph">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <p>Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer l'aperçu<br><span style="font-size:12px;opacity:0.5">Ctrl+Entrée</span></p>
+    <div class="split" id="split">
+      <div class="edpane" id="pane-ed">
+        <div class="paneHdr">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Source
+          <span class="phright"><span id="curname" style="color:#7a9ac8"></span></span>
+        </div>
+        <div class="edbody">
+          <textarea id="ed"></textarea>
+        </div>
       </div>
-      <iframe id="pdfframe"></iframe>
+
+      <div class="resizer" id="resizer" title="Glisser pour redimensionner"></div>
+
+      <div class="pvpane" id="pane-pv">
+        <div class="paneHdr">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Aperçu PDF
+          <span class="phright">
+            <button class="phbtn" onclick="compileWithFallback()" title="Compiler avec le serveur de secours">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Autre serveur
+            </button>
+            <button class="phbtn" onclick="openPdfFull()" id="btnpdf2" disabled title="Ouvrir le PDF dans un nouvel onglet (pour téléchargement)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Ouvrir / télécharger
+            </button>
+          </span>
+        </div>
+        <div class="pvbody">
+          <div class="pvph" id="pvph">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <p>Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer l'aperçu</p>
+            <span class="kbdhint"><kbd>Ctrl</kbd> + <kbd>↵</kbd></span>
+          </div>
+          <iframe id="pdfframe" name="pdfframe"></iframe>
+          <div class="pverr" id="pverr"></div>
+        </div>
+      </div>
     </div>
 
     <div class="log" id="log"></div>
     <div class="sbar">
       <span class="dot" id="dot"></span>
       <span id="stxt">Prêt</span>
-      <span id="curname" style="margin-left:10px;color:#3a6a9a;font-size:11px"></span>
-      <span style="margin-left:auto;font-family:monospace;font-size:11px">pdflatex · latexonline.cc</span>
+      <span style="margin-left:auto;font-family:monospace;font-size:11px;color:#3a4a6a">pdflatex · texlive.net + latexonline.cc (secours)</span>
+    </div>
+  </div>
+</div>
+
+<div class="dropzone" id="dropzone">
+  <div class="dz-card">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#7ec4ff" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <h2>Dépose tes fichiers ici</h2>
+    <p>Fichiers <code>.tex</code> ou archives <code>.zip</code> (export Overleaf)</p>
+  </div>
+</div>
+
+<div class="modal-bg" id="ghmbg">
+  <div class="ghmodal">
+    <div class="ghmodal-hdr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#e0e0e0"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.1-.4-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.6-2.8 5.6-5.5 5.9.5.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+      <h3>Synchronisation GitHub</h3>
+      <span class="ghst" id="ghst">Non configuré</span>
+    </div>
+    <div class="ghmodal-body">
+      <div class="ghfield">
+        <label>Personal Access Token <span style="color:#cc6060;text-transform:none;letter-spacing:0">*</span></label>
+        <input type="password" id="ghToken" placeholder="github_pat_…" autocomplete="off">
+        <div class="gfhint">
+          Crée un <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" style="color:#4da6ff">fine-grained token</a> avec permission <b>Contents: Read &amp; write</b> sur ton dépôt. Le token reste stocké dans ton navigateur uniquement.
+        </div>
+      </div>
+      <div class="ghrow">
+        <div class="ghfield">
+          <label>Propriétaire (user/org)</label>
+          <input type="text" id="ghOwner" placeholder="alexisruiz" autocomplete="off">
+        </div>
+        <div class="ghfield">
+          <label>Dépôt</label>
+          <input type="text" id="ghRepo" placeholder="latex-docs" autocomplete="off">
+        </div>
+      </div>
+      <div class="ghrow">
+        <div class="ghfield">
+          <label>Branche</label>
+          <input type="text" id="ghBranch" placeholder="main" value="main" autocomplete="off">
+        </div>
+        <div class="ghfield">
+          <label>Dossier (optionnel)</label>
+          <input type="text" id="ghFolder" placeholder="documents" autocomplete="off">
+        </div>
+      </div>
+      <div class="ghfield">
+        <label class="ghtoggle">
+          <input type="checkbox" id="ghAuto"> Pousser automatiquement à chaque sauvegarde
+        </label>
+      </div>
+    </div>
+    <div class="ghlog" id="ghlog"></div>
+    <div class="ghactions">
+      <button onclick="ghTest()" id="ghTestBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Tester la connexion
+      </button>
+      <button onclick="ghPullAll()" class="ghpull" id="ghPullBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Tout récupérer
+      </button>
+      <button onclick="ghPushAll()" class="ghprim" id="ghPushBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Tout pousser
+      </button>
+      <div class="ghspacer"></div>
+      <button onclick="ghClear()" class="ghdanger" title="Supprimer la config locale">Oublier</button>
+      <button onclick="closeGhMod()">Fermer</button>
     </div>
   </div>
 </div>
 
 <div class="modal-bg" id="mbg">
-  <div class="modal">
+  <div class="modal modal-lg">
     <h3>Sauvegarder le document</h3>
+    <label class="flbl">Nom</label>
     <input type="text" id="mname" placeholder="Ex: TP son Terminale" autocomplete="off">
+    <label class="flbl">Dossier</label>
+    <div class="fpick" id="fpick"></div>
     <div class="mbtns">
       <button class="mcancel" onclick="closeMod()">Annuler</button>
       <button class="mok" onclick="confirmSave()">Sauvegarder</button>
@@ -306,7 +731,301 @@ function setLastId(id){localStorage.setItem('ltx_last',id)}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function fmt(ts){const d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
 
+// ============ PROJECTS (Overleaf-like multi-file containers) ============
+// A project groups a main .tex with its assets (images, .bib, .sty, sub-tex files).
+// Storage shape:
+//   project = { id, name, classroom, mainPath, createdAt, updatedAt,
+//               files: { 'path/to/file.png': {type:'binary', data:'base64', mime}|{type:'text', content} } }
+// Each .tex inside a project lives in the regular docs[] table with extra fields:
+//   doc.projectId    -> link to project
+//   doc.projectPath  -> path inside project, e.g. 'chap3/main.tex'
+// Non-project docs (standalone) work as before with their doc.folder.
+function getProjects(){try{return JSON.parse(localStorage.getItem('ltx_projects')||'[]')}catch{return[]}}
+function saveProjects(p){localStorage.setItem('ltx_projects',JSON.stringify(p))}
+function getProject(pid){return getProjects().find(p=>p.id===pid)}
+function updateProject(pid,fn){
+  const ps=getProjects();const i=ps.findIndex(p=>p.id===pid);
+  if(i===-1)return null;
+  fn(ps[i]);ps[i].updatedAt=Date.now();saveProjects(ps);return ps[i];
+}
+function deleteProject(pid){
+  if(!confirm('Supprimer ce projet et tous ses fichiers ?'))return;
+  saveProjects(getProjects().filter(p=>p.id!==pid));
+  // Also delete attached tex docs
+  saveDocs(getDocs().filter(d=>d.projectId!==pid));
+  if(currentId){const d=getDocs().find(x=>x.id===currentId);if(!d){
+    const all=getDocs();if(all.length)openDoc(all[0].id,false);
+  }}
+  renderDocs();
+}
+
+// Binary <-> base64 helpers
+function blobToBase64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(blob);});}
+function base64ToBlob(b64,mime){const bin=atob(b64);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);return new Blob([buf],{type:mime||'application/octet-stream'});}
+
+const BINARY_EXT=new Set(['png','jpg','jpeg','gif','bmp','webp','pdf','eps','svg','ico','tif','tiff','zip','tar','gz','ttf','otf','woff','woff2','mp3','mp4','wav','m4a']);
+const MIME_BY_EXT={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',webp:'image/webp',pdf:'application/pdf',eps:'application/postscript',svg:'image/svg+xml',ico:'image/x-icon',tif:'image/tiff',tiff:'image/tiff'};
+function extOf(path){const m=path.match(/\.([^./\\]+)$/);return m?m[1].toLowerCase():'';}
+function isBinaryPath(p){return BINARY_EXT.has(extOf(p));}
+function isTexPath(p){return /\.tex$/i.test(p);}
+function mimeFor(p){return MIME_BY_EXT[extOf(p)]||'application/octet-stream'};
+
+// Get all files of a project (tex docs + attachments), as a flat list for compilation
+function getProjectAllFiles(projectId){
+  const proj=getProject(projectId);
+  if(!proj)return [];
+  const out=[];
+  // Tex docs (always text)
+  for(const d of getDocs()){
+    if(d.projectId===projectId){
+      out.push({path:d.projectPath,kind:'text',content:d.content||''});
+    }
+  }
+  // Attachments
+  for(const [path,info] of Object.entries(proj.files||{})){
+    if(info.type==='text')out.push({path,kind:'text',content:info.content||''});
+    else out.push({path,kind:'binary',data:info.data,mime:info.mime||mimeFor(path)});
+  }
+  return out;
+}
+
+// ---- Folders ----
+const DEFAULT_FOLDERS=['Terminale','BTS CIEL 1A','BTS CIEL 2A'];
+function getFolders(){
+  const raw=localStorage.getItem('ltx_folders');
+  if(raw===null){saveFolders(DEFAULT_FOLDERS);return DEFAULT_FOLDERS.slice();}
+  try{return JSON.parse(raw)||[];}catch{return [];}
+}
+function saveFolders(f){localStorage.setItem('ltx_folders',JSON.stringify(f))}
+function allFolders(){
+  // Union of saved folders + folders implied by docs
+  const set=new Set(getFolders());
+  for(const d of getDocs()){if(d.folder)set.add(d.folder);}
+  return Array.from(set);
+}
+function getCollapsed(){try{return JSON.parse(localStorage.getItem('ltx_collapsed')||'{}')}catch{return{}}}
+function setCollapsed(c){localStorage.setItem('ltx_collapsed',JSON.stringify(c))}
+function toggleFolder(name){const c=getCollapsed();c[name]=!c[name];setCollapsed(c);renderDocs();}
+
+function newFolderPrompt(parentPath){
+  const ctx=parentPath?' dans "'+parentPath+'"':'';
+  const name=prompt('Nom du nouveau dossier'+ctx+' :\n(ex : Terminale, BTS CIEL 1A, CCF, ...)');
+  if(!name)return;
+  const cleaned=name.trim().replace(/\//g,'-');
+  if(!cleaned)return;
+  const fullPath=parentPath?parentPath+'/'+cleaned:cleaned;
+  const f=getFolders();
+  if(!f.includes(fullPath))f.push(fullPath);
+  // Also ensure parent path exists in the list
+  if(parentPath&&!f.includes(parentPath))f.push(parentPath);
+  saveFolders(f);
+  // Expand parent so user sees the new folder
+  if(parentPath){const c=getCollapsed();delete c['cls:'+parentPath];setCollapsed(c);}
+  renderDocs();
+  refreshFolderPicker();
+}
+
+function deleteFolder(name,e){
+  if(e)e.stopPropagation();
+  // Find subfolders + docs + projects under this path
+  const folders=getFolders();
+  const subFolders=folders.filter(f=>f===name||f.startsWith(name+'/'));
+  const docsInside=getDocs().filter(d=>!d.projectId&&(d.folder===name||(d.folder||'').startsWith(name+'/')));
+  const projInside=getProjects().filter(p=>p.classroom===name||(p.classroom||'').startsWith(name+'/'));
+  const totalItems=docsInside.length+projInside.length;
+  if(totalItems){
+    const subInfo=subFolders.length>1?' ('+(subFolders.length-1)+' sous-dossier(s))':'';
+    if(!confirm('Le dossier "'+name+'"'+subInfo+' contient '+totalItems+' élément(s). Ils seront déplacés dans "Non classé". Continuer ?'))return;
+    const docs=getDocs();
+    for(const d of docs)if(!d.projectId&&(d.folder===name||(d.folder||'').startsWith(name+'/')))d.folder='';
+    saveDocs(docs);
+    const ps=getProjects();
+    for(const p of ps)if(p.classroom===name||(p.classroom||'').startsWith(name+'/'))p.classroom='';
+    saveProjects(ps);
+  }else if(!confirm('Supprimer le dossier "'+name+'" ?'))return;
+  saveFolders(folders.filter(f=>f!==name&&!f.startsWith(name+'/')));
+  renderDocs();
+  refreshFolderPicker();
+}
+
+function moveDocToFolder(docId,folder,e){
+  if(e)e.stopPropagation();
+  const docs=getDocs();
+  const i=docs.findIndex(d=>d.id===docId);
+  if(i===-1)return;
+  if(docs[i].projectId){
+    // For a project doc, move the entire project
+    updateProject(docs[i].projectId,p=>{p.classroom=folder||'';});
+  }else{
+    docs[i].folder=folder||'';
+    docs[i].updatedAt=Date.now();
+    if(docs[i].ghSha){docs[i].ghSha=null;docs[i].ghPath=null;docs[i].ghSyncedContent=undefined;}
+    saveDocs(docs);
+    scheduleAutoPush(docId);
+  }
+  renderDocs();
+}
+
 let cm, currentId=null, saveTimer=null, pdfBlob=null;
+
+function resize(){
+  if(!cm) return;
+  cm.refresh();
+}
+window.addEventListener('resize', resize);
+
+// ---- Sidebar resizer ----
+function initSidebarResizer(){
+  const sb=document.getElementById('sidebar');
+  const res=document.getElementById('sbResizer');
+  const saved=parseFloat(localStorage.getItem('ltx_sbwidth')||'200');
+  applySbWidth(saved);
+  function applySbWidth(px){
+    px=Math.max(140,Math.min(500,px));
+    sb.style.width=px+'px';
+    localStorage.setItem('ltx_sbwidth',px.toFixed(0));
+  }
+  let dragging=false, overlay=null;
+  res.addEventListener('mousedown',e=>{
+    dragging=true;
+    res.classList.add('dragging');
+    overlay=document.createElement('div');
+    overlay.className='dragging-overlay';
+    document.body.appendChild(overlay);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const r=sb.getBoundingClientRect();
+    applySbWidth(e.clientX-r.left);
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;
+    res.classList.remove('dragging');
+    if(overlay){overlay.remove();overlay=null;}
+    if(cm)cm.refresh();
+  });
+  res.addEventListener('dblclick',()=>{applySbWidth(200);if(cm)cm.refresh();});
+}
+
+// ---- Theme toggle ----
+const PALETTES_DARK=[
+  {id:'default',name:'Océan (défaut)',colors:['#4da6ff','#7ec880','#ffaa44','#505070']},
+  {id:'monokai',name:'Monokai',colors:['#f92672','#e6db74','#ae81ff','#75715e']},
+  {id:'dracula',name:'Dracula',colors:['#ff79c6','#f1fa8c','#8be9fd','#6272a4']},
+  {id:'solarized',name:'Solarized Dark',colors:['#b58900','#2aa198','#cb4b16','#586e75']},
+  {id:'nord',name:'Nord (arctique)',colors:['#81a1c1','#a3be8c','#d08770','#616e88']},
+  {id:'rose',name:'Rosé Pine',colors:['#c4a7e7','#ebbcba','#f6c177','#6e6a86']},
+  {id:'warm',name:'Tokyo Night',colors:['#ff9e64','#9ece6a','#bb9af7','#565f89']}
+];
+const PALETTES_LIGHT=[
+  {id:'default',name:'Marin (défaut)',colors:['#1a5a99','#0a7a3a','#cc6600','#9090a0']},
+  {id:'github',name:'GitHub',colors:['#cf222e','#0a3069','#0550ae','#6e7781']},
+  {id:'solarized-light',name:'Solarized Light',colors:['#b58900','#2aa198','#cb4b16','#93a1a1']}
+];
+
+function getCurrentPalettes(){return document.body.classList.contains('light')?PALETTES_LIGHT:PALETTES_DARK;}
+function getPalette(){return localStorage.getItem('ltx_palette')||'default';}
+function applyPalette(id){
+  // Strip any palette-* class
+  for(const cls of Array.from(document.body.classList)){
+    if(cls.startsWith('palette-'))document.body.classList.remove(cls);
+  }
+  if(id&&id!=='default')document.body.classList.add('palette-'+id);
+  localStorage.setItem('ltx_palette',id);
+  if(cm)setTimeout(()=>cm.refresh(),10);
+}
+function togglePalettePop(e){
+  e&&e.stopPropagation();
+  const pop=document.getElementById('palPop');
+  const isOpen=pop.classList.contains('show');
+  if(isOpen){pop.classList.remove('show');return;}
+  // Refresh list based on current theme
+  const current=getPalette();
+  const palettes=getCurrentPalettes();
+  document.getElementById('palList').innerHTML=palettes.map(p=>`
+    <div class="pal-opt ${current===p.id?'active':''}" onclick="applyPalette('${p.id}');togglePalettePop()">
+      <span class="pal-check">${current===p.id?'✓':''}</span>
+      <span class="pal-name">${esc(p.name)}</span>
+      <span class="pal-swatch">${p.colors.map(c=>`<span style="background:${c}"></span>`).join('')}</span>
+    </div>
+  `).join('');
+  pop.classList.add('show');
+  // Close on outside click
+  setTimeout(()=>{
+    document.addEventListener('click',function closer(ev){
+      if(!pop.contains(ev.target)&&ev.target.id!=='paletteBtn'&&!document.getElementById('paletteBtn').contains(ev.target)){
+        pop.classList.remove('show');
+        document.removeEventListener('click',closer);
+      }
+    });
+  },10);
+}
+
+function applyTheme(theme){
+  document.body.classList.toggle('light',theme==='light');
+  localStorage.setItem('ltx_theme',theme);
+  // Update icon: moon for dark mode, sun for light mode
+  const icon=document.getElementById('themeIcon');
+  if(icon){
+    icon.innerHTML=theme==='light'
+      ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+      : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  }
+  if(cm)setTimeout(()=>cm.refresh(),10);
+}
+function toggleTheme(){
+  const cur=localStorage.getItem('ltx_theme')||'dark';
+  applyTheme(cur==='light'?'dark':'light');
+}
+
+// Apply saved theme as early as possible
+(function(){
+  // Apply saved theme + palette
+  const saved=localStorage.getItem('ltx_theme')||'dark';
+  if(saved==='light')document.body.classList.add('light');
+  const savedPal=localStorage.getItem('ltx_palette')||'default';
+  if(savedPal!=='default')document.body.classList.add('palette-'+savedPal);
+})();
+function initSplitter(){
+  const split=document.getElementById('split');
+  const res=document.getElementById('resizer');
+  const edp=document.getElementById('pane-ed');
+  const pvp=document.getElementById('pane-pv');
+  const saved=parseFloat(localStorage.getItem('ltx_split')||'50');
+  applySplit(saved);
+  function applySplit(pct){
+    pct=Math.max(15,Math.min(85,pct));
+    edp.style.flex='0 0 calc('+pct+'% - 2.5px)';
+    pvp.style.flex='0 0 calc('+(100-pct)+'% - 2.5px)';
+    localStorage.setItem('ltx_split',pct.toFixed(2));
+  }
+  let dragging=false, overlay=null;
+  res.addEventListener('mousedown',e=>{
+    dragging=true;
+    res.classList.add('dragging');
+    overlay=document.createElement('div');
+    overlay.className='dragging-overlay';
+    document.body.appendChild(overlay);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const r=split.getBoundingClientRect();
+    const pct=((e.clientX-r.left)/r.width)*100;
+    applySplit(pct);
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;
+    res.classList.remove('dragging');
+    if(overlay){overlay.remove();overlay=null;}
+    if(cm)cm.refresh();
+  });
+  // Double-click to reset to 50/50
+  res.addEventListener('dblclick',()=>{applySplit(50);if(cm)cm.refresh();});
+}
 
 window.addEventListener('load',()=>{
   cm=CodeMirror.fromTextArea(document.getElementById('ed'),{
@@ -318,19 +1037,18 @@ window.addEventListener('load',()=>{
       'Cmd-S':(e)=>{e.preventDefault();openSaveModal()}
     }
   });
-    function resize(){
-    const hdr=document.getElementById("hdr").offsetHeight;
-    const tabs=document.querySelector(".tabs").offsetHeight;
-    const sbar=document.getElementById("sbar").offsetHeight;
-    const log=document.getElementById("log");
-    const logH=log.style.display!=="none"?log.offsetHeight:0;
-    const h=window.innerHeight-hdr-tabs-sbar-logH-2;
-    cm.setSize("100%", h+"px");
-    document.getElementById("pdfframe").style.height=h+"px";
-    document.getElementById("pvph").style.height=h+"px";
-  }
-  resize();
-  window.addEventListener("resize", resize);
+  setTimeout(resize, 50);
+  initSplitter();
+  initSidebarResizer();
+  // Re-apply theme to update icon now that DOM is ready
+  applyTheme(localStorage.getItem('ltx_theme')||'dark');
+  setupFileDrop();
+  updateGhStatus();
+
+  // Close GitHub modal on backdrop click
+  document.getElementById('ghmbg').addEventListener('click',e=>{
+    if(e.target===document.getElementById('ghmbg'))closeGhMod();
+  });
 
   const docs=getDocs(),lastId=getLastId();
   const found=docs.find(d=>d.id===lastId);
@@ -357,36 +1075,522 @@ window.addEventListener('load',()=>{
   });
 });
 
-async function compile(){
-  const src=cm.getValue();
-  const btn=document.getElementById('btnc');
+// ========== GitHub sync ==========
+function getGhCfg(){try{return JSON.parse(localStorage.getItem('ltx_gh')||'{}')}catch{return{}}}
+function setGhCfg(c){localStorage.setItem('ltx_gh',JSON.stringify(c))}
+function ghReady(){const c=getGhCfg();return c.token&&c.owner&&c.repo&&c.branch;}
+
+function slugify(s){return (s||'document').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,80)||'document';}
+function ghPathFor(doc){
+  const c=getGhCfg();
+  const baseFolder=(c.folder||'').replace(/^\/+|\/+$/g,'');
+  const docFolder=(doc.folder||'').replace(/^\/+|\/+$/g,'');
+  const name=slugify(doc.name)+'.tex';
+  const parts=[];
+  if(baseFolder)parts.push(baseFolder);
+  if(docFolder)parts.push(slugify(docFolder));
+  parts.push(name);
+  return parts.join('/');
+}
+
+// btoa with full UTF-8 support
+function utf8btoa(s){return btoa(unescape(encodeURIComponent(s)));}
+function utf8atob(s){try{return decodeURIComponent(escape(atob(s)));}catch{return atob(s);}}
+
+async function ghFetch(path,opts={}){
+  const c=getGhCfg();
+  const url='https://api.github.com/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo)+path;
+  const headers=Object.assign({
+    'Authorization':'Bearer '+c.token,
+    'Accept':'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28'
+  },opts.headers||{});
+  const res=await fetch(url,Object.assign({},opts,{headers}));
+  return res;
+}
+
+function ghSetBadge(state,label){
+  const btn=document.getElementById('ghBtn');
+  const dot=document.getElementById('ghBtnDot');
+  const lbl=document.getElementById('ghBtnLabel');
+  btn.classList.remove('connected','syncing','err');
+  dot.className='ghdot';
+  if(state==='ok'){btn.classList.add('connected');dot.classList.add('ok');}
+  else if(state==='spin'){btn.classList.add('syncing');dot.classList.add('spin');}
+  else if(state==='err'){btn.classList.add('err');dot.classList.add('err');}
+  if(label!==undefined)lbl.textContent=label;
+}
+
+function openGhModal(){
+  const c=getGhCfg();
+  document.getElementById('ghToken').value=c.token||'';
+  document.getElementById('ghOwner').value=c.owner||'';
+  document.getElementById('ghRepo').value=c.repo||'';
+  document.getElementById('ghBranch').value=c.branch||'main';
+  document.getElementById('ghFolder').value=c.folder||'';
+  document.getElementById('ghAuto').checked=!!c.auto;
+  document.getElementById('ghlog').classList.remove('show');
+  updateGhStatus();
+  document.getElementById('ghmbg').classList.add('open');
+}
+function closeGhMod(){
+  // Save form values into config
+  const c=getGhCfg();
+  c.token=document.getElementById('ghToken').value.trim();
+  c.owner=document.getElementById('ghOwner').value.trim();
+  c.repo=document.getElementById('ghRepo').value.trim();
+  c.branch=document.getElementById('ghBranch').value.trim()||'main';
+  c.folder=document.getElementById('ghFolder').value.trim();
+  c.auto=document.getElementById('ghAuto').checked;
+  setGhCfg(c);
+  document.getElementById('ghmbg').classList.remove('open');
+  updateGhStatus();
+  renderDocs();
+}
+function ghClear(){
+  if(!confirm('Effacer la configuration GitHub locale (token, dépôt, etc.) ?'))return;
+  localStorage.removeItem('ltx_gh');
+  openGhModal();
+  ghSetBadge('','GitHub');
+  ghLog('Configuration effacée.',false);
+  renderDocs();
+}
+function updateGhStatus(){
+  const c=getGhCfg();
+  const st=document.getElementById('ghst');
+  if(ghReady()){
+    st.textContent=c.owner+'/'+c.repo+' • '+c.branch;
+    st.className='ghst ok';
+    ghSetBadge('ok',c.repo);
+  }else{
+    st.textContent='Non configuré';
+    st.className='ghst';
+    ghSetBadge('','GitHub');
+  }
+}
+function ghLog(msg,err){
+  const el=document.getElementById('ghlog');
+  el.classList.add('show');
+  el.classList.toggle('err',!!err);
+  el.classList.toggle('ok',!err);
+  el.textContent=msg;
+}
+
+async function ghTest(){
+  // Save current form first
+  const c={};
+  c.token=document.getElementById('ghToken').value.trim();
+  c.owner=document.getElementById('ghOwner').value.trim();
+  c.repo=document.getElementById('ghRepo').value.trim();
+  c.branch=document.getElementById('ghBranch').value.trim()||'main';
+  c.folder=document.getElementById('ghFolder').value.trim();
+  c.auto=document.getElementById('ghAuto').checked;
+  if(!c.token||!c.owner||!c.repo){ghLog('Renseigne au minimum le token, le propriétaire et le dépôt.',true);return;}
+  setGhCfg(c);
+  const btn=document.getElementById('ghTestBtn');
   btn.disabled=true;
-  setStatus('spin','Compilation en cours...');
-  document.getElementById('log').style.display='none';
+  ghLog('Connexion à api.github.com…',false);
   try{
-    const fd=new FormData();
-    fd.append('filecontents[]',src);
-    fd.append('filename[]','document.tex');
-    fd.append('engine','pdflatex');
-    fd.append('return','pdf');
-    const res=await fetch('https://texlive.net/cgi-bin/latexcgi',{method:'POST',body:fd});
-    if(!res.ok){const t=await res.text().catch(()=>'');throw new Error('Erreur HTTP '+res.status+'
-'+t.slice(0,400));}
-    const blob=await res.blob();
-    if(!blob.type.includes('pdf')){const t=await blob.text();throw new Error(t.slice(0,600)||'Erreur LaTeX — vérifier la syntaxe.');}
-    pdfBlob=blob;
-    const url=URL.createObjectURL(blob);
-    const fr=document.getElementById('pdfframe');
-    fr.src=url;fr.style.display='block';
-    document.getElementById('pvph').style.display='none';
-    document.getElementById('btnpdf').disabled=false;
-    setStatus('ok','Compilation réussie ✓');
-    showLog('PDF généré via texlive.net.',false);
-    sw('pv');
+    const res=await ghFetch('?');
+    if(res.status===404){ghLog('Dépôt introuvable. Vérifie le nom et que le token a accès à ce dépôt.',true);updateGhStatus();return;}
+    if(res.status===401){ghLog('Token refusé (401). Vérifie le token.',true);updateGhStatus();return;}
+    if(!res.ok){const t=await res.text();ghLog('Erreur '+res.status+' : '+t.slice(0,200),true);return;}
+    const r=await res.json();
+    ghLog('✓ Connecté à '+r.full_name+' (branche par défaut : '+r.default_branch+').'+
+      (r.permissions&&r.permissions.push?' Droits en écriture OK.':' ⚠ Pas de droits en écriture.'),false);
+    updateGhStatus();
   }catch(e){
-    setStatus('err','Erreur de compilation');
-    showLog(e.message||String(e),true);
+    ghLog('Erreur réseau : '+(e.message||e),true);
   }finally{btn.disabled=false;}
+}
+
+// Push a single document to GitHub
+async function ghPushDoc(docId,opts={silent:false}){
+  if(!ghReady())return {ok:false,reason:'not_configured'};
+  const docs=getDocs();
+  const i=docs.findIndex(d=>d.id===docId);
+  if(i===-1)return {ok:false,reason:'not_found'};
+  const doc=docs[i];
+  const path=ghPathFor(doc);
+  setDocSync(docId,'spin');
+  try{
+    // Fetch existing SHA if file exists
+    let sha=doc.ghSha;
+    if(!sha){
+      const c=getGhCfg();
+      const r=await ghFetch('/contents/'+encodeURI(path)+'?ref='+encodeURIComponent(c.branch));
+      if(r.ok){const j=await r.json();sha=j.sha;}
+    }
+    const c=getGhCfg();
+    const body={
+      message:'Update '+path+' via LaTeX Studio',
+      content:utf8btoa(doc.content||''),
+      branch:c.branch
+    };
+    if(sha)body.sha=sha;
+    const r=await ghFetch('/contents/'+encodeURI(path),{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    if(r.status===409||r.status===422){
+      // SHA mismatch — refetch and retry once
+      const r0=await ghFetch('/contents/'+encodeURI(path)+'?ref='+encodeURIComponent(c.branch));
+      if(r0.ok){const j=await r0.json();body.sha=j.sha;
+        const r2=await ghFetch('/contents/'+encodeURI(path),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        if(!r2.ok){const t=await r2.text();throw new Error('PUT '+r2.status+': '+t.slice(0,200));}
+        const j2=await r2.json();sha=j2.content.sha;
+      }else{throw new Error('Conflit non résolu');}
+    } else if(!r.ok){const t=await r.text();throw new Error('PUT '+r.status+': '+t.slice(0,200));}
+    else {const j=await r.json();sha=j.content.sha;}
+    // Update local state
+    const docs2=getDocs();
+    const i2=docs2.findIndex(d=>d.id===docId);
+    if(i2!==-1){docs2[i2].ghSha=sha;docs2[i2].ghPath=path;docs2[i2].ghSyncedAt=Date.now();docs2[i2].ghSyncedContent=docs2[i2].content;saveDocs(docs2);}
+    setDocSync(docId,'ok');
+    renderDocs();
+    return {ok:true};
+  }catch(e){
+    setDocSync(docId,'err');
+    if(!opts.silent)alert('Erreur push : '+(e.message||e));
+    renderDocs();
+    return {ok:false,error:e};
+  }
+}
+
+function setDocSync(id,state){
+  const docs=getDocs();
+  const i=docs.findIndex(d=>d.id===id);
+  if(i===-1)return;
+  docs[i].syncState=state;
+  saveDocs(docs);
+}
+
+async function ghPushAll(){
+  if(!ghReady()){ghLog('Configure d\'abord la connexion.',true);return;}
+  // Save current form first
+  const c=getGhCfg();
+  c.token=document.getElementById('ghToken').value.trim();
+  c.owner=document.getElementById('ghOwner').value.trim();
+  c.repo=document.getElementById('ghRepo').value.trim();
+  c.branch=document.getElementById('ghBranch').value.trim()||'main';
+  c.folder=document.getElementById('ghFolder').value.trim();
+  c.auto=document.getElementById('ghAuto').checked;
+  setGhCfg(c);
+  if(currentId)autoSave();
+  const docs=getDocs();
+  const btn=document.getElementById('ghPushBtn');
+  btn.disabled=true;
+  let ok=0,fail=0;
+  for(const d of docs){
+    ghLog('Push : '+d.name+'…',false);
+    const r=await ghPushDoc(d.id,{silent:true});
+    if(r.ok)ok++;else fail++;
+  }
+  ghLog((fail?'⚠ ':'✓ ')+ok+' document(s) poussé(s)'+(fail?', '+fail+' échec(s).':' avec succès.'),fail>0);
+  btn.disabled=false;
+}
+
+async function ghPullAll(){
+  if(!ghReady()){ghLog('Configure d\'abord la connexion.',true);return;}
+  const c=getGhCfg();
+  c.token=document.getElementById('ghToken').value.trim();
+  c.owner=document.getElementById('ghOwner').value.trim();
+  c.repo=document.getElementById('ghRepo').value.trim();
+  c.branch=document.getElementById('ghBranch').value.trim()||'main';
+  c.folder=document.getElementById('ghFolder').value.trim();
+  c.auto=document.getElementById('ghAuto').checked;
+  setGhCfg(c);
+  if(!confirm('Récupérer tous les fichiers .tex du dépôt (récursivement) ?\n\nLes documents portant le même nom seront mis à jour ; les autres seront ajoutés avec leur dossier.'))return;
+  const btn=document.getElementById('ghPullBtn');
+  btn.disabled=true;
+  try{
+    const baseFolder=(c.folder||'').replace(/^\/+|\/+$/g,'');
+    // Use git tree API for recursive listing
+    ghLog('Récupération de l\'arborescence…',false);
+    // First get the branch SHA
+    const br=await ghFetch('/branches/'+encodeURIComponent(c.branch));
+    if(!br.ok){const t=await br.text();throw new Error('GET branch '+br.status+': '+t.slice(0,200));}
+    const brj=await br.json();
+    const sha=brj.commit.sha;
+    const tr=await ghFetch('/git/trees/'+sha+'?recursive=1');
+    if(!tr.ok){const t=await tr.text();throw new Error('GET tree '+tr.status+': '+t.slice(0,200));}
+    const trj=await tr.json();
+    const allTex=(trj.tree||[]).filter(n=>n.type==='blob'&&n.path.toLowerCase().endsWith('.tex'));
+    // Filter to baseFolder if set
+    const texFiles=baseFolder?allTex.filter(n=>n.path===baseFolder+'/'+n.path.slice(baseFolder.length+1)&&n.path.startsWith(baseFolder+'/')):allTex;
+    if(!texFiles.length){ghLog('Aucun fichier .tex trouvé dans '+(baseFolder||'la racine')+'.',false);btn.disabled=false;return;}
+    if(trj.truncated)ghLog('⚠ Réponse Git tronquée — le dépôt est très grand, certains fichiers peuvent manquer.',true);
+    let added=0,updated=0;
+    for(const f of texFiles){
+      const relPath=baseFolder?f.path.slice(baseFolder.length+1):f.path;
+      const parts=relPath.split('/');
+      const fileName=parts.pop();
+      const docFolder=parts.join('/'); // may be empty
+      ghLog('Récupération : '+f.path+'…',false);
+      const fr=await ghFetch('/git/blobs/'+f.sha);
+      if(!fr.ok)continue;
+      const fj=await fr.json();
+      const content=utf8atob((fj.content||'').replace(/\n/g,''));
+      const baseName=fileName.replace(/\.tex$/i,'');
+      const docs=getDocs();
+      let existing=docs.find(d=>d.ghPath===f.path);
+      if(!existing)existing=docs.find(d=>slugify(d.name)===baseName&&(d.folder||'')===docFolder);
+      if(existing){
+        const idx=docs.findIndex(d=>d.id===existing.id);
+        docs[idx].content=content;
+        docs[idx].folder=docFolder;
+        docs[idx].ghSha=f.sha;
+        docs[idx].ghPath=f.path;
+        docs[idx].ghSyncedAt=Date.now();
+        docs[idx].ghSyncedContent=content;
+        docs[idx].updatedAt=Date.now();
+        docs[idx].syncState='ok';
+        saveDocs(docs);
+        updated++;
+        if(currentId===existing.id){cm.setValue(content);cm.clearHistory();}
+      }else{
+        const id=genId();
+        docs.unshift({id,name:baseName.replace(/_/g,' '),folder:docFolder,content,createdAt:Date.now(),updatedAt:Date.now(),ghSha:f.sha,ghPath:f.path,ghSyncedAt:Date.now(),ghSyncedContent:content,syncState:'ok'});
+        // Register the folder if new
+        if(docFolder){const fs=getFolders();if(!fs.includes(docFolder)){fs.push(docFolder);saveFolders(fs);}}
+        saveDocs(docs);
+        added++;
+      }
+    }
+    ghLog('✓ '+added+' ajouté(s), '+updated+' mis à jour.',false);
+    renderDocs();
+  }catch(e){
+    ghLog('Erreur : '+(e.message||e),true);
+  }finally{btn.disabled=false;}
+}
+
+// Manual single-doc push (from sidebar)
+async function ghPushCurrent(docId,e){
+  if(e)e.stopPropagation();
+  if(!ghReady()){openGhModal();return;}
+  if(currentId===docId)autoSave();
+  await ghPushDoc(docId,{silent:false});
+}
+
+// Auto-push trigger (debounced)
+let _autoPushTimer=null;
+function scheduleAutoPush(docId){
+  const c=getGhCfg();
+  if(!c.auto||!ghReady())return;
+  clearTimeout(_autoPushTimer);
+  _autoPushTimer=setTimeout(()=>{ghPushDoc(docId,{silent:true});},3000);
+}
+
+function ghStateFor(doc){
+  const c=getGhCfg();
+  if(!ghReady())return 'off';
+  if(doc.syncState==='spin')return 'spin';
+  if(doc.syncState==='err')return 'err';
+  if(!doc.ghSha)return 'dirty';
+  if(doc.ghSyncedContent!==undefined&&doc.ghSyncedContent!==doc.content)return 'dirty';
+  return 'ok';
+}
+function ghStateIcon(s){
+  return {ok:'☁',dirty:'☁',spin:'↻',err:'!',off:''}[s]||'';
+}
+function ghStateTitle(s){
+  return {ok:'Synchronisé avec GitHub',dirty:'Modifications non poussées — clic pour pousser',spin:'Synchronisation en cours…',err:'Erreur de synchronisation — clic pour réessayer',off:'GitHub non configuré'}[s]||'';
+}
+
+// ---- Form-submit compilation (bypasses CORS) ----
+// We POST a hidden form to the LaTeX server with target=<iframe>.
+// Cross-origin form POSTs are not subject to CORS — same trick the
+// texlive.net "Test page" uses. The iframe shows PDF on success, or
+// the server's HTML error log on failure.
+const SERVERS={
+  texlive:{
+    url:'https://texlive.net/cgi-bin/latexcgi',
+    fields:{'filecontents[]':null,'filename[]':'document.tex',engine:'pdflatex','return':'pdf'},
+    srcField:'filecontents[]',
+    label:'texlive.net'
+  },
+  latexonline:{
+    url:'https://latexonline.cc/data?command=pdflatex&target=document.tex&force=true',
+    fields:{'file':null},
+    srcField:'file',
+    srcAsFile:true,
+    label:'latexonline.cc'
+  }
+};
+
+let _lastFormSrv='texlive';
+let _iframeLoadHandler=null;
+
+// Build a multi-file form for texlive.net (Overleaf-style projects).
+// `files` is an array of {path, kind:'text'|'binary', content (string) or data (base64), mime}.
+// `mainPath` is the entry point filename.
+function buildForm(files,mainPath,srvKey,iframeName){
+  const srv=SERVERS[srvKey];
+  const form=document.createElement('form');
+  form.method='POST';
+  form.action=srv.url;
+  form.target=iframeName;
+  form.enctype='multipart/form-data';
+  form.acceptCharset='utf-8';
+  form.style.display='none';
+
+  // Engine + return
+  for(const k of ['engine','return']){
+    const inp=document.createElement('input');inp.type='hidden';inp.name=k;
+    inp.value=k==='engine'?'pdflatex':'pdf';
+    form.appendChild(inp);
+  }
+
+  // Reorder files so the main one is FIRST — texlive.net uses the first
+  // filecontents[]/filename[] pair as the entry point.
+  const ordered=files.slice();
+  if(mainPath){
+    const idx=ordered.findIndex(f=>f.path===mainPath);
+    if(idx>0){const m=ordered.splice(idx,1)[0];ordered.unshift(m);}
+  }
+
+  // For each project file: paired filecontents[] + filename[] entries.
+  // Text files go through a <textarea> (UTF-8 safe).
+  // Binary files go through <input type="file"> with a File set via DataTransfer (preserves bytes).
+  for(const f of ordered){
+    const nameInp=document.createElement('input');nameInp.type='hidden';nameInp.name='filename[]';nameInp.value=f.path;
+    if(f.kind==='binary'){
+      const fileInp=document.createElement('input');
+      fileInp.type='file';fileInp.name='filecontents[]';
+      const blob=base64ToBlob(f.data,f.mime||mimeFor(f.path));
+      const fileObj=new File([blob],f.path.split('/').pop(),{type:f.mime||mimeFor(f.path)});
+      try{
+        const dt=new DataTransfer();
+        dt.items.add(fileObj);
+        fileInp.files=dt.files;
+      }catch(e){
+        console.warn('Binary attach failed for',f.path,e);
+      }
+      form.appendChild(fileInp);
+    }else{
+      const ta=document.createElement('textarea');
+      ta.name='filecontents[]';
+      ta.value=f.content||'';
+      form.appendChild(ta);
+    }
+    form.appendChild(nameInp);
+  }
+  return form;
+}
+
+// Single-file convenience for the latexonline.cc fallback (no multi-file support).
+function buildSingleFileForm(src,srvKey,iframeName){
+  const srv=SERVERS[srvKey];
+  const form=document.createElement('form');
+  form.method='POST';form.action=srv.url;form.target=iframeName;
+  form.enctype='multipart/form-data';form.acceptCharset='utf-8';form.style.display='none';
+  for(const k in srv.fields){
+    const v=srv.fields[k];
+    const inp=document.createElement(k===srv.srcField?'textarea':'input');
+    if(inp.tagName==='INPUT')inp.type='hidden';
+    inp.name=k;
+    if(k===srv.srcField){inp.value=src;}else{inp.value=v;}
+    form.appendChild(inp);
+  }
+  return form;
+}
+
+// Gather the files to compile based on the current document.
+// If the current doc belongs to a project, send the whole project (with the project's mainPath).
+// Otherwise send just the current doc as a single document.
+function getCompileBundle(){
+  const cur=getDocs().find(d=>d.id===currentId);
+  if(!cur)return {files:[{path:'document.tex',kind:'text',content:cm.getValue()}],mainPath:'document.tex',isProject:false};
+  // Make sure the in-memory edits are saved before we read project files
+  autoSave();
+  if(cur.projectId){
+    const proj=getProject(cur.projectId);
+    if(proj){
+      const files=getProjectAllFiles(cur.projectId);
+      return {files,mainPath:proj.mainPath||cur.projectPath,isProject:true,projectName:proj.name};
+    }
+  }
+  return {files:[{path:'document.tex',kind:'text',content:cm.getValue()}],mainPath:'document.tex',isProject:false};
+}
+
+function compile(){
+  const btn=document.getElementById('btnc');
+  const fr=document.getElementById('pdfframe');
+  const pvph=document.getElementById('pvph');
+  const pverr=document.getElementById('pverr');
+
+  btn.disabled=true;
+  setStatus('spin','Compilation en cours…');
+  document.getElementById('log').style.display='none';
+  pverr.classList.remove('show');
+  pvph.style.display='none';
+  fr.style.display='block';
+  pdfBlob=null;
+  document.getElementById('btnpdf').disabled=true;
+  document.getElementById('btnpdf2').disabled=true;
+  if(!fr.name)fr.name='pdfframe';
+
+  if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+  let timedOut=false;
+  const timeout=setTimeout(()=>{
+    timedOut=true;
+    setStatus('err','Délai dépassé');
+    showCompileError('⏱ Délai de compilation dépassé',
+      'Le serveur '+SERVERS[_lastFormSrv].label+' ne répond pas après 60 secondes.\n\nEssayez de relancer, ou bascule sur l\'autre serveur.');
+    btn.disabled=false;
+  },60000);
+
+  _iframeLoadHandler=()=>{
+    if(timedOut)return;
+    clearTimeout(timeout);
+    btn.disabled=false;
+    setStatus('ok','Compilation terminée — '+SERVERS[_lastFormSrv].label);
+    document.getElementById('btnpdf').disabled=false;
+    document.getElementById('btnpdf2').disabled=false;
+  };
+  fr.addEventListener('load',_iframeLoadHandler);
+
+  const bundle=getCompileBundle();
+  if(bundle.isProject){
+    setStatus('spin','Compilation du projet "'+bundle.projectName+'" ('+bundle.files.length+' fichiers)…');
+  }
+  // Force texlive.net for projects (multi-file). Single docs can use either.
+  if(bundle.isProject&&_lastFormSrv!=='texlive'){_lastFormSrv='texlive';}
+
+  const form=(bundle.isProject||_lastFormSrv==='texlive')
+    ? buildForm(bundle.files,bundle.mainPath,_lastFormSrv,fr.name)
+    : buildSingleFileForm(bundle.files[0].content,_lastFormSrv,fr.name);
+
+  document.body.appendChild(form);
+  try{ form.submit(); }
+  catch(e){
+    clearTimeout(timeout);
+    setStatus('err','Erreur');
+    showCompileError('⚠ Erreur',String(e.message||e));
+    btn.disabled=false;
+  }
+  setTimeout(()=>form.remove(),100);
+}
+
+function compileWithFallback(){
+  // Only meaningful for single-file docs
+  const cur=getDocs().find(d=>d.id===currentId);
+  if(cur&&cur.projectId){
+    alert('Le serveur de secours ne supporte pas les projets multi-fichiers.\nReste sur texlive.net pour ce document.');
+    return;
+  }
+  _lastFormSrv = _lastFormSrv==='texlive' ? 'latexonline' : 'texlive';
+  setStatus('spin','Bascule sur '+SERVERS[_lastFormSrv].label+'…');
+  compile();
+}
+
+function showCompileError(title,body){
+  const pv=document.getElementById('pverr');
+  pv.innerHTML='<div class="pverr-title">'+esc(title)+'</div>'+esc(body);
+  pv.classList.add('show');
+  document.getElementById('pdfframe').style.display='none';
+  document.getElementById('pvph').style.display='none';
 }
 
 function autoSave(){
@@ -397,6 +1601,7 @@ function autoSave(){
   saveDocs(docs);
   setBadge('Sauvegardé',true);
   renderDocs();
+  scheduleAutoPush(currentId);
 }
 
 function setBadge(txt,ok){
@@ -421,9 +1626,11 @@ function openDoc(id,save=true){
   renderDocs();sw('ed');
   pdfBlob=null;
   document.getElementById('btnpdf').disabled=true;
+  document.getElementById('btnpdf2').disabled=true;
   document.getElementById('pdfframe').style.display='none';
   document.getElementById('pdfframe').src='';
   document.getElementById('pvph').style.display='flex';
+  document.getElementById('pverr').classList.remove('show');
 }
 
 function deleteDoc(id,e){
@@ -439,19 +1646,487 @@ function deleteDoc(id,e){
 function newDoc(){createDoc('Sans titre',T.blank);}
 
 function renderDocs(){
-  document.getElementById('docslist').innerHTML=getDocs().map(d=>`
-    <div class="ditem ${d.id===currentId?'dactive':''}" onclick="openDoc('${d.id}')">
-      <span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(d.name)}</span>
-      <span class="ddate">${fmt(d.updatedAt)}</span>
-      <button class="ddel" onclick="deleteDoc('${d.id}',event)">✕</button>
-    </div>`).join('');
+  const allDocs=getDocs();
+  const projects=getProjects();
+  const collapsed=getCollapsed();
+
+  // Build the folder tree from saved folders + folders implied by docs/projects
+  const allPaths=new Set(getFolders());
+  for(const d of allDocs){
+    if(!d.projectId&&d.folder){
+      // Add this folder and all its ancestors
+      const parts=d.folder.split('/');
+      for(let i=1;i<=parts.length;i++)allPaths.add(parts.slice(0,i).join('/'));
+    }
+  }
+  for(const p of projects){
+    if(p.classroom){
+      const parts=p.classroom.split('/');
+      for(let i=1;i<=parts.length;i++)allPaths.add(parts.slice(0,i).join('/'));
+    }
+  }
+
+  // Tree: { name: { _children: {...}, _path: 'BTS MATHS/CCF' } }
+  const tree={};
+  for(const path of allPaths){
+    const parts=path.split('/');
+    let node=tree;
+    let acc='';
+    for(const part of parts){
+      acc=acc?acc+'/'+part:part;
+      if(!node[part])node[part]={_children:{},_path:acc};
+      node=node[part]._children;
+    }
+  }
+
+  // Index docs/projects by folder path
+  const docsByFolder={};
+  const standaloneUnfiled=[];
+  for(const d of allDocs){
+    if(d.projectId)continue;
+    const c=d.folder||'';
+    if(c){(docsByFolder[c]=docsByFolder[c]||[]).push(d);}
+    else standaloneUnfiled.push(d);
+  }
+  const projsByFolder={};
+  const projsUnfiled=[];
+  for(const p of projects){
+    const c=p.classroom||'';
+    if(c){(projsByFolder[c]=projsByFolder[c]||[]).push(p);}
+    else projsUnfiled.push(p);
+  }
+  Object.values(docsByFolder).forEach(arr=>arr.sort((a,b)=>b.updatedAt-a.updatedAt));
+  Object.values(projsByFolder).forEach(arr=>arr.sort((a,b)=>b.updatedAt-a.updatedAt));
+  standaloneUnfiled.sort((a,b)=>b.updatedAt-a.updatedAt);
+  projsUnfiled.sort((a,b)=>b.updatedAt-a.updatedAt);
+
+  function docItemHtml(d,extraClass){
+    const st=ghStateFor(d);
+    const ic=ghStateIcon(st);
+    const t=ghStateTitle(st);
+    const syncBtn=(st==='off')?'':`<button class="dsync ${st}" title="${esc(t)}" onclick="ghPushCurrent('${d.id}',event)">${ic}</button>`;
+    const isMain=d.projectId&&(()=>{const p=getProject(d.projectId);return p&&p.mainPath===d.projectPath;})();
+    const mainBadge=isMain?'<span class="mainbadge" title="Fichier principal du projet">main</span>':'';
+    return `<div class="ditem ${d.id===currentId?'dactive':''} ${extraClass||''}" draggable="true" data-doc-id="${d.id}" ondragstart="onDocDragStart(event,'${d.id}')" onclick="openDoc('${d.id}')">
+      ${syncBtn}
+      <span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(d.name)}${mainBadge}</span>
+      <button class="ddel" onclick="deleteDoc('${d.id}',event)" title="Supprimer">✕</button>
+    </div>`;
+  }
+
+  function assetItemHtml(path,info){
+    const ic=info.type==='binary'?'🖼':'📄';
+    const baseName=path.split('/').pop();
+    return `<div class="pitem-asset" title="${esc(path)} — fichier joint, inclus à la compilation">
+      <span class="passet-ic">${ic}</span>
+      <span class="passet-name">${esc(baseName)}</span>
+    </div>`;
+  }
+
+  function renderProjectTree(node,depth){
+    let h='';
+    const dirKeys=Object.keys(node.dirs).sort();
+    for(const dn of dirKeys){
+      h+=`<div class="pdir" style="padding-left:${depth*10+4}px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${esc(dn)}</div>`;
+      h+=`<div style="padding-left:${depth*10}px">`;
+      h+=renderProjectTree(node.dirs[dn],depth+1);
+      h+=`</div>`;
+    }
+    const sorted=node.files.slice().sort((a,b)=>{
+      if(a.kind==='tex'&&b.kind!=='tex')return -1;
+      if(a.kind!=='tex'&&b.kind==='tex')return 1;
+      if(a.isMain&&!b.isMain)return -1;
+      if(!a.isMain&&b.isMain)return 1;
+      return a.name.localeCompare(b.name);
+    });
+    for(const f of sorted){
+      if(f.kind==='tex'){
+        const d=getDocs().find(x=>x.id===f.docId);
+        if(d)h+=`<div style="padding-left:${depth*10}px">`+docItemHtml(d,'pitem-tex')+`</div>`;
+      }else{
+        h+=`<div style="padding-left:${depth*10+4}px">`+assetItemHtml(f.path,f.info)+`</div>`;
+      }
+    }
+    return h;
+  }
+
+  function buildProjectTree(project){
+    const root={dirs:{},files:[]};
+    function addToTree(path,fileEntry){
+      const parts=path.split('/');
+      let node=root;
+      for(let i=0;i<parts.length-1;i++){
+        node.dirs[parts[i]]=node.dirs[parts[i]]||{dirs:{},files:[]};
+        node=node.dirs[parts[i]];
+      }
+      node.files.push(Object.assign({name:parts[parts.length-1]},fileEntry));
+    }
+    for(const d of getDocs()){
+      if(d.projectId===project.id){
+        addToTree(d.projectPath,{kind:'tex',docId:d.id,isMain:d.projectPath===project.mainPath});
+      }
+    }
+    for(const [path,info] of Object.entries(project.files||{})){
+      addToTree(path,{kind:'asset',path,info});
+    }
+    return root;
+  }
+
+  function projectHtml(p){
+    const collKey='proj:'+p.id;
+    const isColl=collapsed[collKey];
+    const tree=buildProjectTree(p);
+    const docCount=getDocs().filter(d=>d.projectId===p.id).length;
+    const assetCount=Object.keys(p.files||{}).length;
+    return `<div class="proj ${isColl?'collapsed':''}" data-project="${p.id}">
+      <div class="proj-hdr ${isColl?'collapsed':''}" onclick="toggleFolder('${collKey}')">
+        <span class="farrow">▾</span>
+        <svg class="ficon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span class="fname">${esc(p.name)}</span>
+        <span class="fcount" title="${docCount} fichier(s) .tex, ${assetCount} ressource(s)">${docCount}+${assetCount}</span>
+        <span class="fdel" role="button" tabindex="0" onclick="deleteProject('${p.id}');event.stopPropagation();" title="Supprimer le projet">✕</span>
+      </div>
+      <div class="proj-body">
+        ${renderProjectTree(tree,0)}
+      </div>
+    </div>`;
+  }
+
+  // Recursive folder renderer
+  function renderFolder(name,subtree,fullPath,depth){
+    const collKey='cls:'+fullPath;
+    const isColl=collapsed[collKey];
+    const standalone=docsByFolder[fullPath]||[];
+    const projs=projsByFolder[fullPath]||[];
+    const subKeys=Object.keys(subtree._children);
+    // Sort subfolders
+    subKeys.sort((a,b)=>{
+      const ia=DEFAULT_FOLDERS.indexOf(a),ib=DEFAULT_FOLDERS.indexOf(b);
+      if(ia>=0&&ib>=0)return ia-ib;
+      if(ia>=0)return -1;if(ib>=0)return 1;
+      return a.localeCompare(b,'fr');
+    });
+    const totalCount=standalone.length+projs.length+subKeys.length;
+    const isEmpty=totalCount===0;
+    const safePath=esc(fullPath).replace(/'/g,"\\'");
+    return `<div class="fldr ${isColl?'collapsed':''}" data-folder="${esc(fullPath)}">
+      <div class="fldr-hdr ${isEmpty?'empty':''} ${isColl?'collapsed':''}" onclick="toggleFolder('${esc(collKey).replace(/'/g,"\\'")}')">
+        <span class="farrow">▾</span>
+        <svg class="ficon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="fname">${esc(name)}</span>
+        <span class="fcount">${totalCount||''}</span>
+        <span class="fdel fadd" role="button" tabindex="0" onclick="newFolderPrompt('${safePath}');event.stopPropagation();" title="Créer un sous-dossier ici">+</span>
+        <span class="fdel" role="button" tabindex="0" onclick="deleteFolder('${safePath}',event)" title="Supprimer le dossier">✕</span>
+      </div>
+      <div class="fldr-body" ondragover="onFolderDragOver(event,'${safePath}')" ondragleave="onFolderDragLeave(event)" ondrop="onFolderDrop(event,'${safePath}')">
+        ${subKeys.map(k=>renderFolder(k,subtree._children[k],subtree._children[k]._path,depth+1)).join('')}
+        ${projs.map(projectHtml).join('')}
+        ${standalone.map(d=>docItemHtml(d)).join('')}
+        ${isEmpty?'<div style="padding:6px 12px;font-size:11px;color:#404060;font-style:italic">Vide — glissez ici</div>':''}
+      </div>
+    </div>`;
+  }
+
+  // Sort top-level folders
+  const topKeys=Object.keys(tree);
+  topKeys.sort((a,b)=>{
+    const ia=DEFAULT_FOLDERS.indexOf(a),ib=DEFAULT_FOLDERS.indexOf(b);
+    if(ia>=0&&ib>=0)return ia-ib;
+    if(ia>=0)return -1;if(ib>=0)return 1;
+    return a.localeCompare(b,'fr');
+  });
+
+  let html='';
+  for(const k of topKeys)html+=renderFolder(k,tree[k],tree[k]._path,0);
+
+  // Unfiled (no folder)
+  if(projsUnfiled.length||standaloneUnfiled.length){
+    html+=`<div class="fldr" data-folder="">
+      <div class="fldr-body" style="border-left-color:transparent" ondragover="onFolderDragOver(event,'')" ondragleave="onFolderDragLeave(event)" ondrop="onFolderDrop(event,'')">
+        ${projsUnfiled.map(projectHtml).join('')}
+        ${standaloneUnfiled.map(d=>docItemHtml(d)).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('docslist').innerHTML=html;
+}
+
+// ---- Drag-and-drop between folders ----
+let _dragDocId=null;
+function onDocDragStart(e,id){
+  _dragDocId=id;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',id);
+}
+function onFolderDragOver(e,folder){
+  if(!_dragDocId)return; // External file drop handled elsewhere
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('dragover');
+}
+function onFolderDragLeave(e){e.currentTarget.classList.remove('dragover');}
+function onFolderDrop(e,folder){
+  e.currentTarget.classList.remove('dragover');
+  if(!_dragDocId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  moveDocToFolder(_dragDocId,folder);
+  _dragDocId=null;
+}
+
+// ---- Folder picker in save modal ----
+function refreshFolderPicker(){
+  const cur=getDocs().find(d=>d.id===currentId);
+  const curFolder=cur?(cur.folder||''):'';
+  const fp=document.getElementById('fpick');
+  if(!fp)return;
+  // List all folder paths (saved + implied)
+  const set=new Set(getFolders());
+  for(const d of getDocs())if(!d.projectId&&d.folder)set.add(d.folder);
+  for(const p of getProjects())if(p.classroom)set.add(p.classroom);
+  // Add parent paths
+  const expanded=new Set();
+  for(const path of set){
+    const parts=path.split('/');
+    for(let i=1;i<=parts.length;i++)expanded.add(parts.slice(0,i).join('/'));
+  }
+  const folders=Array.from(expanded);
+  folders.sort((a,b)=>{
+    // Sort hierarchically by full path
+    return a.localeCompare(b,'fr');
+  });
+  let h=`<button class="${curFolder===''?'active':''}" onclick="pickFolder('')">— Aucun —</button>`;
+  for(const f of folders){
+    const depth=f.split('/').length-1;
+    const indent=depth>0?'padding-left:'+(8+depth*10)+'px;':'';
+    const display=depth>0?'↳ '+f.split('/').pop():f;
+    h+=`<button class="${curFolder===f?'active':''}" style="${indent}" title="${esc(f)}" onclick="pickFolder('${esc(f).replace(/'/g,"\\'")}')">${esc(display)}</button>`;
+  }
+  h+=`<button class="fpnew" onclick="pickFolderNew()">+ Nouveau…</button>`;
+  fp.innerHTML=h;
+  fp.dataset.selected=curFolder;
+}
+function pickFolder(f){
+  const fp=document.getElementById('fpick');
+  fp.dataset.selected=f;
+  refreshFolderPickerActive();
+}
+function pickFolderNew(){
+  const cur=document.getElementById('fpick').dataset.selected||'';
+  const ctx=cur?' (sous "'+cur+'")':'';
+  const name=prompt('Nom du nouveau dossier'+ctx+' :');
+  if(!name)return;
+  const cleaned=name.trim().replace(/\//g,'-');
+  if(!cleaned)return;
+  const fullPath=cur?cur+'/'+cleaned:cleaned;
+  const f=getFolders();
+  if(!f.includes(fullPath))f.push(fullPath);
+  saveFolders(f);
+  refreshFolderPicker();
+  pickFolder(fullPath);
+}
+function refreshFolderPickerActive(){
+  const fp=document.getElementById('fpick');
+  const sel=fp.dataset.selected||'';
+  for(const b of fp.querySelectorAll('button:not(.fpnew)')){
+    const title=b.getAttribute('title')||b.textContent.trim();
+    b.classList.toggle('active',(title==='— Aucun —'&&sel==='')||title===sel||b.textContent.trim()===sel);
+  }
 }
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+// ============ FILE IMPORT (.tex / .zip) ============
+async function importFiles(fileList){
+  const files=Array.from(fileList||[]);
+  if(!files.length)return;
+  let imported=0,errors=[];
+  for(const f of files){
+    try{
+      const name=f.name.toLowerCase();
+      if(name.endsWith('.zip')){
+        const n=await importZip(f);
+        imported+=n;
+      }else if(name.endsWith('.tex')||name.endsWith('.txt')){
+        await importTexFile(f,'');
+        imported++;
+      }else{
+        errors.push(f.name+' : format non supporté (uniquement .tex et .zip)');
+      }
+    }catch(e){
+      errors.push(f.name+' : '+(e.message||e));
+    }
+  }
+  renderDocs();
+  if(errors.length){
+    alert('Import terminé : '+imported+' document(s) importé(s).\n\nErreurs :\n'+errors.join('\n'));
+  }else{
+    setBadge(imported+' document(s) importé(s)',true);
+  }
+}
+
+async function importTexFile(file,defaultFolder){
+  const text=await file.text();
+  return createImportedDoc(file.name.replace(/\.tex$/i,'').replace(/_/g,' '),text,defaultFolder||'');
+}
+
+async function importZip(file){
+  if(typeof JSZip==='undefined')throw new Error('Lecteur ZIP non chargé');
+  const zip=await JSZip.loadAsync(file);
+  // Collect all files (skip __MACOSX junk, .DS_Store, dirs)
+  const entries=[];
+  zip.forEach((path,entry)=>{
+    if(entry.dir)return;
+    if(path.includes('__MACOSX/'))return;
+    if(/(^|\/)\.DS_Store$/.test(path))return;
+    entries.push({path,entry});
+  });
+  if(!entries.length)throw new Error('Zip vide');
+
+  // Strip common leading directory (e.g. "MyProject/foo.tex" -> "foo.tex" if everything is in MyProject/)
+  const commonPrefix=findCommonPrefix(entries.map(e=>e.path));
+  const stripLen=commonPrefix.length;
+  for(const e of entries)e.relPath=e.path.slice(stripLen);
+
+  const texEntries=entries.filter(e=>isTexPath(e.relPath));
+  if(!texEntries.length)throw new Error('Aucun fichier .tex dans le zip');
+
+  // Pick main .tex
+  let mainPath=null;
+  for(const e of texEntries){
+    const txt=await e.entry.async('string');
+    if(/\\documentclass/.test(txt)){mainPath=e.relPath;break;}
+  }
+  if(!mainPath){
+    const prefer=texEntries.find(e=>/(^|\/)main\.tex$/i.test(e.relPath))||
+                 texEntries.find(e=>/(^|\/)document\.tex$/i.test(e.relPath))||
+                 texEntries[0];
+    mainPath=prefer.relPath;
+  }
+
+  // Project name from zip filename (or common prefix)
+  const projectName=(commonPrefix.replace(/\/$/,'').split('/').pop()||file.name.replace(/\.zip$/i,'')).replace(/_/g,' ');
+
+  // Create project
+  const projId=genId();
+  const project={
+    id:projId,
+    name:projectName,
+    classroom:'',
+    mainPath,
+    createdAt:Date.now(),
+    updatedAt:Date.now(),
+    files:{} // non-tex assets
+  };
+
+  // Process each entry
+  let firstTexDocId=null;
+  for(const e of entries){
+    const relPath=e.relPath;
+    if(isTexPath(relPath)){
+      const content=await e.entry.async('string');
+      const baseName=relPath.split('/').pop().replace(/\.tex$/i,'');
+      const docId=genId();
+      const docs=getDocs();
+      docs.unshift({
+        id:docId,
+        name:baseName.replace(/_/g,' '),
+        content,
+        folder:'', // not used for project docs
+        projectId:projId,
+        projectPath:relPath,
+        createdAt:Date.now(),
+        updatedAt:Date.now()
+      });
+      saveDocs(docs);
+      if(relPath===mainPath)firstTexDocId=docId;
+      if(!firstTexDocId)firstTexDocId=docId;
+    }else if(isBinaryPath(relPath)){
+      const blob=await e.entry.async('blob');
+      const b64=await blobToBase64(blob);
+      project.files[relPath]={type:'binary',data:b64,mime:mimeFor(relPath)};
+    }else{
+      // Text asset (.bib, .sty, .cls, .bst, .cfg, .clo, etc.)
+      const txt=await e.entry.async('string');
+      project.files[relPath]={type:'text',content:txt};
+    }
+  }
+
+  // Save project
+  const ps=getProjects();ps.unshift(project);saveProjects(ps);
+
+  // Auto-open main file
+  if(firstTexDocId){openDoc(firstTexDocId,false);}
+  return texEntries.length; // count for the import summary
+}
+
+function findCommonPrefix(paths){
+  if(!paths.length)return '';
+  if(paths.length===1){
+    // For a single file, no prefix to strip
+    const i=paths[0].lastIndexOf('/');
+    return '';
+  }
+  let prefix=paths[0];
+  for(const p of paths){
+    while(!p.startsWith(prefix)){
+      prefix=prefix.slice(0,-1);
+      if(!prefix)return '';
+    }
+  }
+  // Trim back to last '/'
+  const slash=prefix.lastIndexOf('/');
+  return slash>=0?prefix.slice(0,slash+1):'';
+}
+
+function createImportedDoc(name,content,folder){
+  const id=genId();
+  const docs=getDocs();
+  // Avoid name collisions by appending a number
+  let finalName=name;
+  let n=2;
+  while(docs.some(d=>d.name===finalName))finalName=name+' ('+(n++)+')';
+  docs.unshift({id,name:finalName,content,folder:folder||'',createdAt:Date.now(),updatedAt:Date.now()});
+  saveDocs(docs);
+  return id;
+}
+
+// ============ DRAG-AND-DROP FILE IMPORT ============
+let _dragCounter=0;
+function setupFileDrop(){
+  const dz=document.getElementById('dropzone');
+  window.addEventListener('dragenter',e=>{
+    if(_dragDocId)return; // internal drag
+    if(!e.dataTransfer||!Array.from(e.dataTransfer.types||[]).includes('Files'))return;
+    _dragCounter++;
+    dz.classList.add('show');
+  });
+  window.addEventListener('dragover',e=>{
+    if(_dragDocId)return;
+    if(!e.dataTransfer||!Array.from(e.dataTransfer.types||[]).includes('Files'))return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect='copy';
+  });
+  window.addEventListener('dragleave',e=>{
+    if(_dragDocId)return;
+    if(!e.dataTransfer||!Array.from(e.dataTransfer.types||[]).includes('Files'))return;
+    _dragCounter--;
+    if(_dragCounter<=0){_dragCounter=0;dz.classList.remove('show');}
+  });
+  window.addEventListener('drop',e=>{
+    if(_dragDocId)return;
+    if(!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length)return;
+    e.preventDefault();
+    _dragCounter=0;
+    dz.classList.remove('show');
+    importFiles(e.dataTransfer.files);
+  });
+}
+
 function openSaveModal(){
   const cur=getDocs().find(d=>d.id===currentId);
   document.getElementById('mname').value=cur?cur.name:'';
+  refreshFolderPicker();
   document.getElementById('mbg').classList.add('open');
   setTimeout(()=>{const i=document.getElementById('mname');i.focus();i.select();},50);
 }
@@ -459,10 +2134,23 @@ function closeMod(){document.getElementById('mbg').classList.remove('open');}
 function confirmSave(){
   const name=document.getElementById('mname').value.trim();
   if(!name)return;
+  const folder=document.getElementById('fpick').dataset.selected||'';
   const docs=getDocs(),idx=docs.findIndex(d=>d.id===currentId);
-  if(idx!==-1){docs[idx].name=name;docs[idx].content=cm.getValue();docs[idx].updatedAt=Date.now();saveDocs(docs);}
+  if(idx!==-1){
+    const oldFolder=docs[idx].folder||'';
+    docs[idx].name=name;
+    docs[idx].folder=folder;
+    docs[idx].content=cm.getValue();
+    docs[idx].updatedAt=Date.now();
+    // If folder or name changed, invalidate GitHub path so a fresh upload happens
+    if(oldFolder!==folder){
+      docs[idx].ghSha=null;docs[idx].ghPath=null;docs[idx].ghSyncedContent=undefined;
+    }
+    saveDocs(docs);
+  }
   document.getElementById('curname').textContent='📄 '+name;
   renderDocs();setBadge('Sauvegardé',true);closeMod();
+  scheduleAutoPush(currentId);
 }
 
 function loadTpl(name){
@@ -471,13 +2159,7 @@ function loadTpl(name){
   cm.setValue(T[name]);sw('ed');
 }
 
-function sw(tab){
-  document.getElementById('pane-ed').classList.toggle('active',tab==='ed');
-  document.getElementById('pane-pv').classList.toggle('active',tab==='pv');
-  document.getElementById('tab-ed').classList.toggle('active',tab==='ed');
-  document.getElementById('tab-pv').classList.toggle('active',tab==='pv');
-  if(tab==='ed')setTimeout(()=>cm.refresh(),10);
-}
+function sw(tab){ /* legacy no-op — split view shows both panes */ if(cm)setTimeout(()=>cm.refresh(),10); }
 function setStatus(s,msg){
   document.getElementById('dot').className='dot'+(s==='spin'?' spin':s==='err'?' err':'');
   document.getElementById('stxt').textContent=msg;
@@ -494,12 +2176,16 @@ function dlTex(){
   a.href=URL.createObjectURL(new Blob([cm.getValue()],{type:'text/plain'}));
   a.download=name+'.tex';a.click();
 }
-function dlPdf(){
-  if(!pdfBlob)return;
-  const cur=getDocs().find(d=>d.id===currentId);
-  const name=(cur?cur.name:'document').replace(/[^a-z0-9_\-]/gi,'_');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(pdfBlob);a.download=name+'.pdf';a.click();
+function dlPdf(){ openPdfFull(); }
+function openPdfFull(){
+  // Open the compiled PDF in a new tab by re-submitting the form.
+  const bundle=getCompileBundle();
+  const form=(bundle.isProject||_lastFormSrv==='texlive')
+    ? buildForm(bundle.files,bundle.mainPath,_lastFormSrv,'_blank')
+    : buildSingleFileForm(bundle.files[0].content,_lastFormSrv,'_blank');
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>form.remove(),100);
 }
 </script>
 </body>
