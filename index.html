@@ -80,6 +80,9 @@ kbd{font-family:monospace;font-size:10px;background:#0a0a1a;border:1px solid #3a
 .ditem{padding:6px 8px 6px 10px;font-size:12px;cursor:pointer;color:#a0a0c0;display:flex;align-items:center;border:none;background:none;width:100%;text-align:left;font-family:inherit}
 .ditem:hover{background:#1e1e3a}
 .dname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.dedit{opacity:0;font-size:11px;color:#6a8aa8;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
+.ditem:hover .dedit{opacity:0.8}
+.dedit:hover{opacity:1!important;color:#4da6ff}
 .ddel{opacity:0;font-size:13px;color:#cc4444;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
 .ditem:hover .ddel{opacity:1}
 .dactive{background:#1a2a1a!important;color:#4dcc88!important}
@@ -574,6 +577,10 @@ body.light ::-webkit-scrollbar-thumb{background:#c0c0d0}
       <button onclick="ghPushAll()" class="ghprim" id="ghPushBtn">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Tout pousser
+      </button>
+      <button onclick="ghCleanup()" class="ghpull" id="ghCleanBtn" title="Lister puis supprimer les fichiers .tex présents sur GitHub mais absents en local">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Nettoyer les fantômes
       </button>
       <div class="ghspacer"></div>
       <button onclick="ghClear()" class="ghdanger" title="Supprimer la config locale">Oublier</button>
@@ -1209,6 +1216,84 @@ async function ghTest(){
   }finally{btn.disabled=false;}
 }
 
+// Cleanup orphan .tex files: files on GitHub that no local doc references
+async function ghCleanup(){
+  if(!ghReady()){ghLog('Configure d\'abord la connexion.',true);return;}
+  // Sync form to config
+  const c=getGhCfg();
+  c.token=document.getElementById('ghToken').value.trim();
+  c.owner=document.getElementById('ghOwner').value.trim();
+  c.repo=document.getElementById('ghRepo').value.trim();
+  c.branch=document.getElementById('ghBranch').value.trim()||'main';
+  c.folder=document.getElementById('ghFolder').value.trim();
+  c.auto=document.getElementById('ghAuto').checked;
+  setGhCfg(c);
+
+  const btn=document.getElementById('ghCleanBtn');
+  btn.disabled=true;
+  ghLog('Analyse du dépôt…',false);
+  try{
+    const baseFolder=(c.folder||'').replace(/^\/+|\/+$/g,'');
+    // Get the branch SHA, then the tree
+    const br=await ghFetch('/branches/'+encodeURIComponent(c.branch));
+    if(!br.ok){const t=await br.text();throw new Error('GET branch '+br.status+': '+t.slice(0,200));}
+    const brj=await br.json();
+    const tr=await ghFetch('/git/trees/'+brj.commit.sha+'?recursive=1');
+    if(!tr.ok){const t=await tr.text();throw new Error('GET tree '+tr.status+': '+t.slice(0,200));}
+    const trj=await tr.json();
+    const allTex=(trj.tree||[]).filter(n=>n.type==='blob'&&n.path.toLowerCase().endsWith('.tex'));
+    const inFolder=baseFolder?allTex.filter(n=>n.path===baseFolder||n.path.startsWith(baseFolder+'/')):allTex;
+
+    // Build set of paths that are referenced by local docs
+    const knownPaths=new Set();
+    for(const d of getDocs()){
+      if(d.ghPath)knownPaths.add(d.ghPath);
+      // Project docs: compute their would-be path
+      if(d.projectId){
+        // For project docs, path = baseFolder/<project classroom>/<projectName>/<projectPath>
+        // We currently don't push project docs, so skip.
+        continue;
+      }
+      // Also compute current expected path in case ghPath not set yet
+      if(!d.projectId){const p=ghPathFor(d);knownPaths.add(p);}
+    }
+
+    const orphans=inFolder.filter(n=>!knownPaths.has(n.path));
+    if(!orphans.length){
+      ghLog('✓ Aucun fichier fantôme — tout est synchronisé.',false);
+      btn.disabled=false;
+      return;
+    }
+
+    // Show list and confirm
+    const list=orphans.map(o=>'  • '+o.path).join('\n');
+    ghLog(orphans.length+' fichier(s) fantôme(s) détecté(s) :\n'+list,false);
+    if(!confirm('Supprimer définitivement '+orphans.length+' fichier(s) du dépôt GitHub ?\n\n'+list+'\n\nCette action est irréversible.')){
+      btn.disabled=false;
+      ghLog('Nettoyage annulé.',false);
+      return;
+    }
+
+    let deleted=0,failed=0;
+    for(const o of orphans){
+      try{
+        const r=await ghFetch('/contents/'+encodeURI(o.path),{
+          method:'DELETE',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({message:'Cleanup orphan '+o.path,sha:o.sha,branch:c.branch})
+        });
+        if(r.ok)deleted++;
+        else{failed++;console.warn('Delete failed for',o.path,r.status);}
+      }catch(e){failed++;console.warn(e);}
+    }
+    ghLog((failed?'⚠ ':'✓ ')+deleted+' fichier(s) supprimé(s)'+(failed?', '+failed+' échec(s).':' avec succès.'),failed>0);
+  }catch(e){
+    ghLog('Erreur : '+(e.message||e),true);
+  }finally{
+    btn.disabled=false;
+  }
+}
+
 // Push a single document to GitHub
 async function ghPushDoc(docId,opts={silent:false}){
   if(!ghReady())return {ok:false,reason:'not_configured'};
@@ -1675,7 +1760,29 @@ function deleteDoc(id,e){
   renderDocs();
 }
 
-function newDoc(){createDoc('Sans titre',T.blank);}
+function newDoc(){
+  // Open the save modal in "create" mode: pre-fill default name + last folder
+  const lastFolder=localStorage.getItem('ltx_last_folder')||'';
+  const id=createDoc('Sans titre',T.blank);
+  // Move to last folder if any
+  if(lastFolder){
+    const docs=getDocs();
+    const i=docs.findIndex(d=>d.id===id);
+    if(i!==-1){docs[i].folder=lastFolder;saveDocs(docs);}
+  }
+  renderDocs();
+  // Open save modal so user can name & place it right away
+  openSaveModal();
+  // Select all the name input so they can type the real name immediately
+  setTimeout(()=>{const inp=document.getElementById('mname');if(inp){inp.focus();inp.select();}},80);
+}
+
+// Open save modal for a specific document (rename / move)
+function openSaveModalFor(docId,e){
+  if(e)e.stopPropagation();
+  if(docId&&docId!==currentId)openDoc(docId);
+  openSaveModal();
+}
 
 function renderDocs(){
   const allDocs=getDocs();
@@ -1739,9 +1846,12 @@ function renderDocs(){
     const syncBtn=(st==='off')?'':`<button class="dsync ${st}" title="${esc(t)}" onclick="ghPushCurrent('${d.id}',event)">${ic}</button>`;
     const isMain=d.projectId&&(()=>{const p=getProject(d.projectId);return p&&p.mainPath===d.projectPath;})();
     const mainBadge=isMain?'<span class="mainbadge" title="Fichier principal du projet">main</span>':'';
+    // No rename/move button for project-internal docs (their path is fixed inside the project)
+    const editBtn=d.projectId?'':`<button class="dedit" onclick="openSaveModalFor('${d.id}',event)" title="Renommer / déplacer">✏</button>`;
     return `<div class="ditem ${d.id===currentId?'dactive':''} ${extraClass||''}" draggable="true" data-doc-id="${d.id}" ondragstart="onDocDragStart(event,'${d.id}')" onclick="openDoc('${d.id}')">
       ${syncBtn}
       <span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(d.name)}${mainBadge}</span>
+      ${editBtn}
       <button class="ddel" onclick="deleteDoc('${d.id}',event)" title="Supprimer">✕</button>
     </div>`;
   }
@@ -2167,6 +2277,8 @@ function confirmSave(){
   const name=document.getElementById('mname').value.trim();
   if(!name)return;
   const folder=document.getElementById('fpick').dataset.selected||'';
+  // Remember last folder for next "+ Doc"
+  if(folder)localStorage.setItem('ltx_last_folder',folder);
   const docs=getDocs(),idx=docs.findIndex(d=>d.id===currentId);
   if(idx!==-1){
     const oldFolder=docs[idx].folder||'';
