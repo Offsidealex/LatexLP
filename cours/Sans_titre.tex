@@ -1,12 +1,390 @@
-\documentclass[11pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
+\documentclass[12pt,a4paper]{article}
+
+% ──────────────── Encodage & langue ────────────────
 \usepackage[T1]{fontenc}
-\usepackage[french]{babel}
-\usepackage{amsmath,amssymb}
-\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,french]{babel}
+
+% ──────────────── Police ────────────────
+\usepackage{palatino}
+
+% ──────────────── Mise en page ────────────────
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm, headheight=15pt]{geometry}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textsc{Lycée Denis Diderot}}
+\rhead{\textsc{Terminale }}
+\lfoot{\textsc{Alexis Ruiz}}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% ──────────────── Couleurs & boîtes ────────────────
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{bleulycee}{RGB}{0,82,147}
+\definecolor{vertdoc}{RGB}{30,130,76}
+\definecolor{orangequest}{RGB}{200,80,20}
+\definecolor{grisclair}{RGB}{245,245,250}
+
+\tcbset{
+  styledoc/.style={
+    colback=grisclair,
+    colframe=bleulycee,
+    fonttitle=\bfseries\color{white},
+    coltitle=white,
+    colbacktitle=bleulycee,
+    arc=4pt,
+    boxrule=0.8pt,
+    left=6pt, right=6pt, top=4pt, bottom=4pt,
+    title={#1}
+  },
+  stylepartie/.style={
+    colback=bleulycee,
+    colframe=bleulycee,
+    coltext=white,
+    fonttitle=\bfseries,
+    boxrule=0pt,
+    arc=3pt,
+    left=8pt, right=8pt, top=5pt, bottom=5pt,
+    before skip=10pt, after skip=6pt,
+  },
+  styleinfo/.style={
+    colback=grisclair,
+    colframe=bleulycee!40,
+    boxrule=0.7pt,
+    arc=3pt,
+    left=8pt, right=8pt, top=5pt, bottom=5pt,
+    before skip=6pt, after skip=6pt,
+  },
+  stylecomp/.style={
+    colback=vertdoc!8,
+    colframe=vertdoc,
+    fonttitle=\bfseries\color{white},
+    coltitle=white,
+    colbacktitle=vertdoc,
+    arc=4pt,
+    boxrule=0.7pt,
+    left=6pt, right=6pt, top=4pt, bottom=4pt,
+    title={Compétences visées}
+  },
+}
+
+\newcommand{\reponse}[1][2.2cm]{%
+  \vspace{4pt}%
+  \begin{tcolorbox}[
+    colback=white, colframe=bleulycee!40,
+    arc=3pt, boxrule=0.5pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    height=#1, valign=top, after skip=4pt,
+  ]\phantom{x}\end{tcolorbox}%
+}
+
+\newcommand{\cadrecalcul}[1][3cm]{%
+  \vspace{4pt}%
+  \begin{tcolorbox}[
+    colback=white, colframe=bleulycee!60,
+    arc=3pt, boxrule=0.8pt,
+    left=4pt, right=4pt, top=2pt, bottom=2pt,
+    height=#1, valign=top, after skip=4pt,
+  ]\phantom{x}\end{tcolorbox}%
+}
+
+\newcounter{numquestion}
+\newcommand{\question}[1]{%
+  \stepcounter{numquestion}%
+  \vspace{6pt}%
+  \noindent{\color{bleulycee}$\blacktriangleright$~\textbf{Question~\thenumquestion.}}~#1%
+  \vspace{2pt}%
+}
+
+% ──────────────── Divers ────────────────
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{locale=FR, detect-all}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, decorations.pathmorphing, patterns}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+% ══════════════════════════════════════════
 \begin{document}
-\begin{center}\Large\textbf{Titre}\end{center}
-\section{Introduction}
-Votre texte ici.
-\[ E = mc^2 \]
+% ══════════════════════════════════════════
+
+%============================================================
+% TITRE
+%============================================================
+\begin{tcolorbox}[
+  colback=bleulycee!10, colframe=bleulycee,
+  arc=5pt, boxrule=1pt,
+  left=8pt, right=8pt, top=6pt, bottom=6pt
+]
+  \begin{center}
+    {\Large\bfseries\color{bleulycee} Activité documentaire}\\[4pt]
+    {\LARGE\bfseries La propagation de la lumière}\\[6pt]
+    {\normalsize\itshape Bac Pro TRPM -- Physique-Chimie \hfill Durée : 45 min}
+  \end{center}
+\end{tcolorbox}
+
+\vspace{4pt}
+\noindent\rule{\linewidth}{0.5pt}\vspace{4pt}
+
+\noindent\textbf{Nom :} \dotfill \hspace{1cm} \textbf{Prénom :} \dotfill \hspace{1cm} \textbf{Classe :} \dotfill
+
+\vspace{4pt}
+\noindent\rule{\linewidth}{0.5pt}
+\vspace{6pt}
+
+%------------------------------------------------------------
+\begin{tcolorbox}[stylecomp]
+  \begin{itemize}[noitemsep, leftmargin=1.2em]
+    \item Distinguer onde mécanique et onde électromagnétique.
+    \item Relier célérité, longueur d'onde et fréquence : $c = \lambda \times f$.
+    \item Comprendre le principe de la réflexion totale interne et son application en fibre optique.
+    \item Exploiter la relation $d = c \times \Delta t \,/\, 2$ pour une mesure par télémétrie laser.
+  \end{itemize}
+\end{tcolorbox}
+
+\begin{tcolorbox}[styleinfo]
+  \textbf{\color{bleulycee}Contexte}\\[4pt]
+  Dans les ateliers de microtechniques et de mécanique de précision, la lumière est
+  utilisée comme outil de mesure et de contrôle : \textbf{capteurs à fibre optique},
+  \textbf{télémètres laser}, \textbf{interféromètres}\ldots\
+  Ces techniques reposent sur les propriétés fondamentales de la propagation de la
+  lumière, que vous allez étudier dans cette activité.
+\end{tcolorbox}
+
+\vspace{4pt}
+
+%============================================================
+% PARTIE A
+%============================================================
+\begin{tcolorbox}[stylepartie]
+  Partie A -- Nature et propriétés de la lumière \hfill {\normalfont\small (15 min)}
+\end{tcolorbox}
+
+\begin{tcolorbox}[styledoc={Document 1 -- La lumière, une onde électromagnétique}]
+  La lumière est une \textbf{onde électromagnétique} : contrairement au son, elle n'a
+  \textbf{pas besoin d'un milieu matériel} pour se propager. Elle se propage dans le vide
+  à la célérité $c = \qty{3,00e8}{\metre\per\second}$. Dans un milieu transparent
+  d'indice de réfraction $n > 1$, sa vitesse est plus faible :
+  \[
+    v = \frac{c}{n} \qquad \text{(ex. : verre, } n \approx 1{,}5 \Rightarrow v \approx \qty{2,00e8}{\metre\per\second}\text{)}
+  \]
+
+  La lumière est caractérisée par sa \textbf{longueur d'onde} $\lambda$ (en m) et sa
+  \textbf{fréquence} $f$ (en Hz), reliées par $c = \lambda \times f$.
+  Le domaine \textbf{visible} s'étend de \qty{380}{\nano\metre} (violet) à \qty{780}{\nano\metre} (rouge).
+
+  \smallskip
+
+  
+  \begin{center}
+  \footnotesize\renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{|l|c|c|c|}
+    \hline
+    \rowcolor{bleulycee!20}
+    \textbf{Couleur} & Violet & Vert & Rouge \\
+    \hline
+    \textbf{Longueur d'onde $\lambda$ (nm)} & 420 & 550 & 650 \\
+    \hline
+    \textbf{Fréquence $f$ (THz)} & 714 & 545 & 461 \\
+    \hline
+  \end{tabular}
+  \end{center}
+\end{tcolorbox}
+
+\newpage
+
+\question{La lumière peut-elle se propager dans le vide ? Comparer avec le son (activité précédente).}
+\reponse[2.5cm]
+
+\question{Un laser industriel émet une lumière de fréquence $f = \qty{4,74e14}{\hertz}$.
+Calculer sa longueur d'onde $\lambda$ dans le vide. De quelle couleur est ce laser ?}
+\cadrecalcul[3.0cm]
+
+\question{La lumière se propage dans une fibre en verre d'indice $n = 1{,}5$.
+Calculer sa vitesse $v$ dans ce milieu.}
+\cadrecalcul[2.8cm]
+
+\vspace{4pt}
+
+%============================================================
+% PARTIE B
+%============================================================
+\begin{tcolorbox}[stylepartie]
+  Partie B -- Réflexion totale interne et fibre optique \hfill {\normalfont\small (15 min)}
+\end{tcolorbox}
+
+\begin{tcolorbox}[styledoc={Document 2 -- Principe de la fibre optique}]
+  Une fibre optique est constituée d'un \textbf{cœur} (indice $n_1$) entouré d'une
+  \textbf{gaine} (indice $n_2 < n_1$). Lorsqu'un rayon lumineux frappe l'interface
+  cœur/gaine avec un angle d'incidence $\theta$ suffisamment grand, il est
+  \textbf{totalement réfléchi} vers l'intérieur du cœur : c'est la
+  \textbf{réflexion totale interne}. La lumière reste ainsi guidée sur de longues
+  distances sans s'échapper.
+
+  \medskip
+  L'angle limite (ou \textbf{angle critique}) $\theta_c$ est donné par :
+\fbox{$
+    \sin \theta_c = \frac{n_2}{n_1}
+$}
+
+
+
+  Si $\theta > \theta_c$ : réflexion totale interne (la lumière reste dans le cœur).\\
+  Si $\theta < \theta_c$ : une partie de la lumière s'échappe par la gaine (pertes).
+
+  \medskip
+
+  \begin{center}
+  \begin{tikzpicture}[scale=0.8]
+    % Gaine supérieure
+    \fill[bleulycee!12] (0,0.55) rectangle (9,1.1);
+    % Coeur
+    \fill[bleulycee!30] (0,-0.55) rectangle (9,0.55);
+    % Gaine inférieure
+    \fill[bleulycee!12] (0,-1.1) rectangle (9,-0.55);
+    % Contours
+    \draw[thick] (0,-1.1) rectangle (9,1.1);
+    \draw[dashed, gray] (0,0.55) -- (9,0.55);
+    \draw[dashed, gray] (0,-0.55) -- (9,-0.55);
+    % Labels
+    \node[right] at (0.1, 0.82) {\small\itshape gaine ($n_2$)};
+    \node[right] at (0.1, 0) {\small\itshape cœur ($n_1 > n_2$)};
+    \node[right] at (0.1,-0.82) {\small\itshape gaine ($n_2$)};
+    % Rayon guidé (réflexions totales)
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (0.5,-0.3) -- (2.2,0.55);
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (2.2,0.55) -- (3.9,-0.55);
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (3.9,-0.55) -- (5.6,0.55);
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (5.6,0.55) -- (7.3,-0.55);
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (7.3,-0.55) -- (8.8,0.2);
+    % Angle critique (annotation)
+    \draw[dashed, bleulycee!60] (2.2,0.55) -- (2.2,1.05);
+    \draw[->, bleulycee] (2.2,0.95) arc[start angle=90, end angle=58, radius=0.4];
+    \node[above right, bleulycee, font=\small] at (2.35,0.85) {$\theta > \theta_c$};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{4pt}
+  \textbf{Données :} cœur en silice : $n_1 = 1{,}48$ \hfill gaine : $n_2 = 1{,}46$
+\end{tcolorbox}
+
+\newpage
+
+\question{Nommer le phénomène physique qui permet à la lumière de rester confinée dans
+le cœur de la fibre optique.}
+\reponse[2.2cm]
+
+\question{Calculer l'angle critique $\theta_c$ pour la fibre optique décrite dans le document 2
+($n_1 = 1{,}48$ ; $n_2 = 1{,}46$). \textit{(On rappelle que $\sin\theta_c = n_2/n_1$)}}
+\cadrecalcul[3.0cm]
+
+\question{Un rayon lumineux arrive sur l'interface cœur/gaine avec un angle $\theta = 82°$.
+Ce rayon reste-t-il dans le cœur ? Justifier.}
+\reponse[2.5cm]
+
+\vspace{4pt}
+
+%============================================================
+% PARTIE C
+%============================================================
+\begin{tcolorbox}[stylepartie]
+  Partie C -- Application : télémétrie laser en contrôle dimensionnel \hfill {\normalfont\small (15 min)}
+\end{tcolorbox}
+
+\begin{tcolorbox}[styledoc={Document 3 -- Télémètre laser et contrôle de cotes}]
+  Un \textbf{télémètre laser} émet une impulsion lumineuse vers la surface d'une pièce.
+  L'impulsion se réfléchit et revient vers le capteur. En mesurant le temps
+  \textbf{aller-retour} $\Delta t$, on calcule la distance $d$ entre le capteur et la pièce :
+  \[
+    d = \frac{c \times \Delta t}{2}
+  \]
+
+
+  
+  Les télémètres laser permettent des mesures \textbf{sans contact}, avec une précision
+  pouvant atteindre le micromètre, ce qui les rend indispensables dans le contrôle
+  dimensionnel en microtechniques
+
+  \vspace{6pt}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.85]
+    % Pièce
+    \fill[gray!30] (6.5,-0.3) rectangle (9,1.8);
+    \draw[thick] (6.5,-0.3) rectangle (9,1.8);
+    \node at (7.75,0.75) {\small pièce};
+    % Capteur
+    \fill[bleulycee!70] (0,0.4) rectangle (1.4,1.1);
+    \draw[thick] (0,0.4) rectangle (1.4,1.1);
+    \node[above] at (0.7,1.1) {\small\textbf{laser}};
+    % Aller
+    \draw[-{Stealth[length=5pt]}, thick, red!80!black]
+      (1.4,0.85) -- (6.5,0.85);
+    \node[above, red!80!black, font=\small] at (3.95,0.88) {émission};
+    % Retour
+    \draw[-{Stealth[length=5pt]}, thick, orange!80!black, dashed]
+      (6.5,0.65) -- (1.4,0.65);
+    \node[below, orange!80!black, font=\small] at (3.95,0.62) {écho};
+    % Distance d
+    \draw[<->, thick, bleulycee] (1.4,-0.1) -- (6.5,-0.1);
+    \node[below, bleulycee] at (3.95,-0.1) {$d = ?$};
+    % Axe temps
+    \node[right] at (9.1,0.75) {\small $\Delta t$ mesuré};
+  \end{tikzpicture}
+  \end{center}
+
+  \end{tcolorbox}
+
+  \newpage
+  
+
+  \vspace{6pt}
+  \begin{center}
+  \footnotesize\renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{|l|c|c|}
+    \hline
+    \rowcolor{bleulycee!20}
+    \textbf{Mesure} & \textbf{Temps aller-retour $\Delta t$} & \textbf{Distance attendue} \\
+    \hline
+    Pièce A (côte nominale : 250 mm) & $\qty{1,67e-9}{\second}$ & 250 mm \\
+    \hline
+    Pièce B (côte nominale : 250 mm) & $\qty{1,60e-9}{\second}$ & 250 mm \\
+    \hline
+  \end{tabular}
+  \end{center}
+  \vspace{2pt}
+  \textit{Rappel : $c = \qty{3,00e8}{\metre\per\second}$}
+
+
+\question{Pour la pièce A, calculer la distance mesurée $d_A$ à partir du temps $\Delta t = \qty{1,67e-9}{\second}$.
+La côte est-elle conforme ?}
+\cadrecalcul[3.2cm]
+
+\question{Pour la pièce B, calculer la distance mesurée $d_B$. La côte est-elle conforme ?
+Que doit décider le technicien ?}
+
+\cadrecalcul[3.5cm]
+
+\question{\textbf{Synthèse :} En vous appuyant sur les trois parties, comparer la lumière et le son
+comme outils de mesure industrielle. Citer un avantage de la lumière par rapport au son
+pour des mesures de haute précision.}
+
+\reponse[5.5cm]
+
+\vspace{6pt}
+\begin{center}
+  \color{bleulycee}\rule{0.5\linewidth}{0.6pt}
+\end{center}
+
 \end{document}
