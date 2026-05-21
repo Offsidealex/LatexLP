@@ -318,7 +318,19 @@ window.addEventListener('load',()=>{
       'Cmd-S':(e)=>{e.preventDefault();openSaveModal()}
     }
   });
-  cm.setSize('100%','100%');
+    function resize(){
+    const hdr=document.getElementById("hdr").offsetHeight;
+    const tabs=document.querySelector(".tabs").offsetHeight;
+    const sbar=document.getElementById("sbar").offsetHeight;
+    const log=document.getElementById("log");
+    const logH=log.style.display!=="none"?log.offsetHeight:0;
+    const h=window.innerHeight-hdr-tabs-sbar-logH-2;
+    cm.setSize("100%", h+"px");
+    document.getElementById("pdfframe").style.height=h+"px";
+    document.getElementById("pvph").style.height=h+"px";
+  }
+  resize();
+  window.addEventListener("resize", resize);
 
   const docs=getDocs(),lastId=getLastId();
   const found=docs.find(d=>d.id===lastId);
@@ -471,8 +483,9 @@ function setStatus(s,msg){
   document.getElementById('stxt').textContent=msg;
 }
 function showLog(txt,err){
-  const l=document.getElementById('log');
-  l.style.display='block';l.className='log'+(err?' err':' ok');l.textContent=txt;
+  const l=document.getElementById("log");
+  l.style.display="block";l.className="log"+(err?" err":" ok");l.textContent=txt;
+  if(typeof resize==="function")setTimeout(resize,0);
 }
 function dlTex(){
   const cur=getDocs().find(d=>d.id===currentId);
