@@ -1,0 +1,106 @@
+name: 📄 Compile LaTeX
+
+# Se déclenche à chaque push de fichiers .tex dans cours/.
+# Ne se redéclenche PAS quand le bot commit les PDFs (filtre sur cours/**).
+on:
+  push:
+    paths:
+      - 'cours/**'
+      - '.github/workflows/compile.yml'
+  workflow_dispatch: # Permet de lancer manuellement depuis l'onglet Actions
+
+permissions:
+  contents: write # Nécessaire pour committer les PDFs
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    container:
+      # Image Docker avec TeX Live complet (~5 Go, mais cachée par GitHub)
+      # Premier run : 5-10 min. Runs suivants : 1-2 min.
+      image: texlive/texlive:latest
+
+    steps:
+      - name: 📥 Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: 🔨 Compiler tous les documents .tex de cours/
+        shell: bash
+        run: |
+          set +e
+          mkdir -p pdf
+          failed=0
+          succeeded=0
+
+          # Trouver tous les fichiers .tex contenant \documentclass (= documents principaux)
+          # Les fichiers \input ou \include ne sont pas compilés à part.
+          mapfile -t mains < <(grep -rl --include='*.tex' '\\documentclass' cours/ 2>/dev/null || true)
+
+          if [ "${#mains[@]}" -eq 0 ]; then
+            echo "Aucun document principal (.tex avec \\documentclass) trouvé dans cours/"
+            exit 0
+          fi
+
+          echo "Documents à compiler : ${#mains[@]}"
+          echo ""
+
+          for tex in "${mains[@]}"; do
+            dir=$(dirname "$tex")
+            base=$(basename "$tex" .tex)
+            relpath="${tex#cours/}"
+            outsubdir=$(dirname "$relpath")
+            outdir="pdf/$outsubdir"
+            mkdir -p "$outdir"
+
+            echo "::group::📝 Compilation : $tex"
+            (
+              cd "$dir"
+              # Deux passes pour résoudre références, table des matières, etc.
+              pdflatex -interaction=nonstopmode -halt-on-error "$base.tex" > /dev/null 2>&1
+              pdflatex -interaction=nonstopmode -halt-on-error "$base.tex"
+            )
+
+            if [ -f "$dir/$base.pdf" ]; then
+              mv "$dir/$base.pdf" "$outdir/"
+              echo "✓ Généré : $outdir/$base.pdf"
+              succeeded=$((succeeded+1))
+            else
+              echo "✗ Échec : $tex"
+              # Afficher le .log pour comprendre l'erreur
+              if [ -f "$dir/$base.log" ]; then
+                echo "--- Dernières lignes du log ---"
+                tail -40 "$dir/$base.log"
+                echo "-------------------------------"
+              fi
+              failed=$((failed+1))
+            fi
+
+            # Nettoyer les fichiers auxiliaires
+            for ext in aux log out toc synctex.gz fls fdb_latexmk nav snm bbl blg; do
+              rm -f "$dir/$base.$ext"
+            done
+
+            echo "::endgroup::"
+          done
+
+          echo ""
+          echo "=== Résumé ==="
+          echo "✓ Réussis : $succeeded"
+          echo "✗ Échoués : $failed"
+
+          # Ne pas faire échouer le workflow si certains documents ont des erreurs LaTeX ;
+          # on veut quand même committer les PDFs qui ont compilé.
+
+      - name: 📦 Commit des PDFs
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add pdf/
+          if git diff --staged --quiet; then
+            echo "Aucun changement dans pdf/."
+          else
+            git commit -m "🤖 Auto-compile PDFs"
+            git push
+          fi
