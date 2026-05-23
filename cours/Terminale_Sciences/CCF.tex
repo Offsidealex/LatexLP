@@ -1,12 +1,336 @@
 \documentclass[11pt,a4paper]{article}
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
 \usepackage[french]{babel}
-\usepackage{amsmath,amssymb}
-\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\frenchbsetup{StandardLists=true}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage[left=2cm,right=2cm,top=2.5cm,bottom=2cm]{geometry}
+\usepackage{multirow,tabularx,booktabs}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{fouriernc}
+\usepackage{fancyhdr}
+\usepackage{colortbl}
+\usepackage{pifont}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{chemmacros}
+\chemsetup{modules=all}
+
+%------ En-tête / pied de page ------
+\pagestyle{fancy}
+\renewcommand\headrulewidth{1pt}
+\fancyhead[L]{Lycée Denis Diderot}
+\fancyhead[R]{Classe de Terminale}
+\fancyfoot[C]{page \thepage}
+\fancyfoot[R]{\today}
+\fancyfoot[L]{Alexis RUIZ}
+
+%------ Commandes maison ------
+\definecolor{repcolor}{RGB}{180,0,0}
+\newcommand{\rep}[1]{\textcolor{repcolor}{\textbf{#1}}}
+
+\renewcommand{\arraystretch}{1.55}
+
+%------ Style tcolorbox exercices ------
+\tcbset{
+  exostyle/.style={
+    enhanced,
+    breakable,
+    colback=white,
+    colframe=BrickRed,
+    coltitle=white,
+    colbacktitle=BrickRed,
+    fonttitle=\bfseries,
+    attach boxed title to top left={yshift=-2.5mm, xshift=5mm},
+    boxed title style={colback=BrickRed, sharp corners, colframe=BrickRed},
+    top=7mm,
+    left=3mm,
+    right=3mm,
+    bottom=3mm,
+  }
+}
+
+%------ Style tcolorbox récap note ------
+\tcbset{
+  notestyle/.style={
+    enhanced,
+    colback=BrickRed!8,
+    colframe=BrickRed,
+    fonttitle=\bfseries,
+    coltitle=white,
+    colbacktitle=BrickRed,
+    halign=center,
+    center,
+    width=8cm,
+  }
+}
+
+% ============================================================
 \begin{document}
-\begin{center}\Large\textbf{Titre}\end{center}
-\section{Introduction}
-Votre texte ici.
-\[ E = mc^2 \]
+
+\begin{center}
+  \Large\rep{GRILLE DE CORRECTION}\\[2mm]
+  \large Évaluation \textit{-- Prévoir une réaction d'oxydo-réduction --} Terminale\\[4mm]
+  \normalsize
+  \begin{tabular}{|>{\centering\arraybackslash}p{3.8cm}|>{\centering\arraybackslash}p{3.8cm}|>{\centering\arraybackslash}p{3.8cm}|>{\centering\arraybackslash}p{3cm}|}
+    \hline
+    \rowcolor{BrickRed!20}
+    \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Total}\\
+    \hline
+    \textit{Cases à cocher} & \textit{QCM} & \textit{Béchers} & \\
+    \hline
+    \rule{0pt}{5mm}/6 pts & /7 pts & /7 pts & \textbf{/20 pts}\\
+    \hline
+    \rule{0pt}{12mm} & & & \\
+    \hline
+  \end{tabular}
+\end{center}
+
+\vspace{3mm}\hrule\vspace{5mm}
+
+% ============================================================
+\begin{tcolorbox}[exostyle,
+  title=Exercice 1 \,--\, Cases à cocher \hfill\textbf{/ 6 points}]
+
+% --- Question ①
+\textbf{\ding{202}}\enspace Affirmations vraie / fausse
+\hfill\small\textit{0,5 pt par bonne réponse \,--\, sous-total : \textbf{2,5 pts}}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\rowcolor{BrickRed!15}
+\textbf{Affirmation} & \textbf{Vraie} & \textbf{Fausse} & \textbf{Pts}\\
+\hline
+Une réaction d'oxydo-réduction est un échange de protons
+  & & \rep{\ding{52}} & 0,5\\
+\hline
+Une oxydation est une perte d'électrons
+  & \rep{\ding{52}} & & 0,5\\
+\hline
+Une réduction est un gain d'électrons
+  & \rep{\ding{52}} & & 0,5\\
+\hline
+Un oxydant perd des électrons
+  & & \rep{\ding{52}} & 0,5\\
+\hline
+Le métal cuivre est un réducteur
+  & \rep{\ding{52}} & & 0,5\\
+\hline
+\multicolumn{3}{|r|}{\textbf{Sous-total \ding{202}}}
+  & \rep{\textbf{2,5}}\\
+\hline
+\end{tabularx}
+
+\bigskip
+
+% --- Question ②
+\textbf{\ding{203}}\enspace Ions \ch{Cu\pch[2]} et métal zinc
+\hfill\small\textit{0,5 pt par bonne réponse \,--\, sous-total : \textbf{2 pts}}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\rowcolor{BrickRed!15}
+\textbf{Proposition} & \textbf{Oui} & \textbf{Non} & \textbf{Pts}\\
+\hline
+L'ion \ch{Cu\pch[2]} est l'oxydant le plus fort
+  & \rep{\ding{52}} & & 0,5\\
+\hline
+L'ion \ch{Zn\pch[2]} est l'oxydant le plus fort
+  & & \rep{\ding{52}} & 0,5\\
+\hline
+Le métal cuivre est le réducteur le plus fort
+  & & \rep{\ding{52}} & 0,5\\
+\hline
+Le métal zinc est le réducteur le plus fort
+  & \rep{\ding{52}} & & 0,5\\
+\hline
+\multicolumn{3}{|r|}{\textbf{Sous-total \ding{203}}}
+  & \rep{\textbf{2,0}}\\
+\hline
+\end{tabularx}
+
+\bigskip
+
+% --- Question ③
+\textbf{\ding{204}}\enspace Cocher les équations exactes \,--\, réaction \ch{Cu\pch[2]} / \ch{Fe}
+\hfill\small\textit{0,5 pt par équation correcte cochée \,--\, sous-total : \textbf{1,5 pts}}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{1.8cm}|}
+\hline
+\rowcolor{BrickRed!15}
+\textbf{Équation} & \textbf{À cocher ?} & \textbf{Pts}\\
+\hline
+\ch{Cu\pch[2] + 2 e\mch[] -> Cu}
+  & \rep{\ding{52}\enspace Oui} & 0,5\\
+\hline
+\ch{Fe\pch[2] + 2 e\mch[] -> Fe}
+  & \ding{55}\enspace Non & --\\
+\hline
+\ch{Cu\pch[2] + Fe -> Cu + Fe\pch[2]}
+  & \rep{\ding{52}\enspace Oui} & 0,5\\
+\hline
+\ch{Cu -> Cu\pch[2] + 2 e\mch[]}
+  & \ding{55}\enspace Non & --\\
+\hline
+\ch{Fe -> Fe\pch[2] + 2 e\mch[]}
+  & \rep{\ding{52}\enspace Oui} & 0,5\\
+\hline
+\ch{Cu + Fe\pch[2] -> Cu\pch[2] + Fe}
+  & \ding{55}\enspace Non & --\\
+\hline
+\multicolumn{2}{|r|}{\textbf{Sous-total \ding{204}}}
+  & \rep{\textbf{1,5}}\\
+\hline
+\end{tabularx}
+
+\end{tcolorbox}
+
+\vspace{5mm}
+
+% ============================================================
+\begin{tcolorbox}[exostyle,
+  title=Exercice 2 \,--\, QCM \hfill\textbf{/ 7 points}]
+
+\textit{1 pt par bonne réponse. La bonne réponse est indiquée en \rep{rouge}.}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{5mm}|>{\raggedright\arraybackslash}p{4.5cm}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|}
+\hline
+\rowcolor{BrickRed!15}
+\textbf{N°} & \textbf{Bonne réponse} & \textbf{Justification / commentaire} & \textbf{Pts}\\
+\hline
+\ding{202}
+  & \rep{Gagne des électrons}
+  & L'oxydant se réduit en gagnant des électrons
+  & 1\\
+\hline
+\ding{203}
+  & \rep{Image B :} \rep{\ch{Ag} dans \ch{Cu\pch[2]}}
+  & \ch{Cu\pch[2]/Cu} moins oxydant que \ch{Ag\pch[]/Ag} $\Rightarrow$ \ch{Cu\pch[2]} ne peut pas oxyder \ch{Ag} $\Rightarrow$ aucun dépôt
+  & 1\\
+\hline
+\ding{204}
+  & \rep{Un gain d'électrons}
+  & Définition de la réduction
+  & 1\\
+\hline
+\ding{205}
+  & \rep{Il se réduit}
+  & \ch{Ag\pch[] + e\mch[] -> Ag} : gain d'électrons = réduction
+  & 1\\
+\hline
+\ding{206}
+  & \rep{Gagnent deux \ch{e\mch[]}}
+  & Demi-équation : \ch{Cu\pch[2] + 2 e\mch[] -> Cu}
+  & 1\\
+\hline
+\ding{207}
+  & \rep{\ch{Al + Cr\pch[3] -> Cr + Al\pch[3]}}
+  & \ch{Cr\pch[3]} plus oxydant $\Rightarrow$ il oxyde \ch{Al} (règle du $\gamma$)
+  & 1\\
+\hline
+\ding{208}
+  & \rep{$\times 2$ la 1\textsuperscript{re}, $\times 3$ la 2\textsuperscript{e}, puis additionner}
+  & PPCM(3,2)~=~6 $\Rightarrow$ $2\,\ch{Al}+3\,\ch{Zn\pch[2]} \longrightarrow 2\,\ch{Al\pch[3]}+3\,\ch{Zn}$
+  & 1\\
+\hline
+\multicolumn{3}{|r|}{\textbf{Total Exercice 2}}
+  & \rep{\textbf{7}}\\
+\hline
+\end{tabularx}
+
+\end{tcolorbox}
+
+\vspace{5mm}
+
+% ============================================================
+\begin{tcolorbox}[exostyle,
+  title=Exercice 3 \,--\, Béchers \hfill\textbf{/ 7 points}]
+
+\textit{Barème détaillé par expérience.}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|}
+\hline
+\rowcolor{BrickRed!15}
+\textbf{Expérience} & \textbf{Éléments attendus} & \textbf{Pts}\\
+
+%--- Exp 1 ---
+\hline
+\multirow{2}{3.2cm}{\centering\textbf{Exp~\ding{202}}\\[2pt]\small\ch{Ag} dans \ch{Cu\pch[2]}}
+  & Réponse : \rep{la réaction n'a pas lieu} & 0,5\\
+\cline{2-3}
+  & Justification : \ch{Cu\pch[2]/Cu} est moins oxydant que \ch{Ag\pch[]/Ag}, donc \ch{Cu\pch[2]} ne peut pas oxyder \ch{Ag} & 0,5\\
+\hline
+\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{202}}} & \rep{\textbf{1,0}}\\
+
+%--- Exp 2 ---
+\hline
+\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{203}}\\[2pt]\small\ch{Zn} dans \ch{Pt\pch[2]}}
+  & Réponse : \rep{la réaction a lieu} (\ch{Pt\pch[2]} plus oxydant que \ch{Zn\pch[2]}) & 0,5\\
+\cline{2-3}
+  & Demi-éq. de réduction : \rep{\ch{Pt\pch[2] + 2 e\mch[] -> Pt}} & 0,5\\
+\cline{2-3}
+  & Demi-éq. d'oxydation : \rep{\ch{Zn -> Zn\pch[2] + 2 e\mch[]}} & 0,5\\
+\cline{2-3}
+  & Équation bilan (électrons s'annulent directement) : \rep{\ch{Pt\pch[2] + Zn -> Pt + Zn\pch[2]}} & 0,5\\
+\hline
+\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{203}}} & \rep{\textbf{2,0}}\\
+
+%--- Exp 3 ---
+\hline
+\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{204}}\\[2pt]\small\ch{Al} dans \ch{Sn\pch[2]}}
+  & Réponse : \rep{la réaction a lieu} (\ch{Sn\pch[2]} plus oxydant que \ch{Al\pch[3]}) & 0,5\\
+\cline{2-3}
+  & Demi-éq. de réduction ($\times 3$) : \rep{\ch{Sn\pch[2] + 2 e\mch[] -> Sn}} & 0,5\\
+\cline{2-3}
+  & Demi-éq. d'oxydation ($\times 2$) : \rep{\ch{Al -> Al\pch[3] + 3 e\mch[]}} & 0,5\\
+\cline{2-3}
+  & Équation bilan (PPCM(2,3)~=~6) : \rep{$3\,\ch{Sn\pch[2]} + 2\,\ch{Al} \longrightarrow 3\,\ch{Sn} + 2\,\ch{Al\pch[3]}$} & 0,5\\
+\hline
+\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{204}}} & \rep{\textbf{2,0}}\\
+
+%--- Exp 4 ---
+\hline
+\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{205}}\\[2pt]\small\ch{Mg} dans \ch{Fe\pch[2]}}
+  & Réponse : \rep{la réaction a lieu} (\ch{Fe\pch[2]} plus oxydant que \ch{Mg\pch[2]}) & 0,5\\
+\cline{2-3}
+  & Demi-éq. de réduction : \rep{\ch{Fe\pch[2] + 2 e\mch[] -> Fe}} & 0,5\\
+\cline{2-3}
+  & Demi-éq. d'oxydation : \rep{\ch{Mg -> Mg\pch[2] + 2 e\mch[]}} & 0,5\\
+\cline{2-3}
+  & Équation bilan (électrons s'annulent directement) : \rep{\ch{Fe\pch[2] + Mg -> Fe + Mg\pch[2]}} & 0,5\\
+\hline
+\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{205}}} & \rep{\textbf{2,0}}\\
+
+\hline
+\multicolumn{2}{|r|}{\textbf{Total Exercice 3}} & \rep{\textbf{7,0}}\\
+\hline
+\end{tabularx}
+
+\end{tcolorbox}
+
+\vspace{8mm}
+
+\begin{center}
+\begin{tcolorbox}[notestyle, title=Récapitulatif]
+  \renewcommand{\arraystretch}{1.6}
+  \begin{tabular}{|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.8cm}|}
+  \hline
+  \rowcolor{BrickRed!20}
+  \textbf{Ex. 1 / 6} & \textbf{Ex. 2 / 7} & \textbf{Ex. 3 / 7}\\
+  \hline
+  \rule{0pt}{10mm} & & \\
+  \hline
+  \end{tabular}\\[4mm]
+  \large\textbf{Note finale : \rule{2cm}{0.4pt} / 20}
+\end{tcolorbox}
+\end{center}
+
 \end{document}
