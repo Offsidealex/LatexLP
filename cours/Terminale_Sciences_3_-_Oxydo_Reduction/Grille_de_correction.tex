@@ -1,12 +1,10 @@
 \documentclass[11pt,a4paper]{article}
-
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath,amssymb}
 \usepackage[french]{babel}
 \frenchbsetup{StandardLists=true}
 \usepackage{enumitem}
-\usepackage{parskip}
 \usepackage[left=2cm,right=2cm,top=2.5cm,bottom=2cm]{geometry}
 \usepackage{multirow,tabularx,booktabs}
 \usepackage[dvipsnames]{xcolor}
@@ -14,254 +12,259 @@
 \usepackage{fancyhdr}
 \usepackage{colortbl}
 \usepackage{pifont}
-\usepackage{chemmacros}
-\chemsetup{modules=all}
+\usepackage[np]{numprint}
 
-%------ En-tête / pied de page ------
 \pagestyle{fancy}
 \renewcommand\headrulewidth{1pt}
 \fancyhead[L]{Lycée Denis Diderot}
-\fancyhead[R]{Classe de Terminale}
+\fancyhead[R]{1BTS}
 \fancyfoot[C]{page \thepage}
-\fancyfoot[R]{\today}
+\fancyfoot[R]{Année 2025-2026}
 \fancyfoot[L]{Alexis RUIZ}
 
-%------ Commandes maison ------
-\definecolor{repcolor}{RGB}{180,0,0}
-\newcommand{\rep}[1]{\textcolor{repcolor}{\textbf{#1}}}
+%------ Couleurs ------
+\definecolor{exoheader}{RGB}{30,90,160}
+\definecolor{exolight}{RGB}{220,235,255}
+\definecolor{solcolor}{RGB}{180,0,0}
+\newcommand{\sol}[1]{\textcolor{solcolor}{\textbf{#1}}}
+\newcommand{\solc}[1]{\textcolor{solcolor}{#1}}
 
-% Titre d'exercice sans tcolorbox
+%------ Titre d'exercice sans tcolorbox ------
 \newcommand{\titreexo}[2]{%
   \vspace{4mm}%
-  \noindent\colorbox{BrickRed}{\color{white}\bfseries\strut\enspace #1\enspace}%
+  \noindent\colorbox{exoheader}{\color{white}\bfseries\strut\enspace #1\enspace}%
   \hfill\textbf{#2}%
-  \vspace{1mm}\par\noindent\textcolor{BrickRed}{\rule{\linewidth}{1pt}}\par
+  \vspace{1mm}\par\noindent\textcolor{exoheader}{\rule{\linewidth}{1pt}}\par
   \vspace{2mm}%
 }
 
-\renewcommand{\arraystretch}{1.5}
+\renewcommand{\arraystretch}{1.6}
+\setlength{\parindent}{0pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 
 % ============================================================
 \begin{document}
 
 \begin{center}
-  \Large\rep{GRILLE DE CORRECTION}\\[2mm]
-  \large Évaluation \textit{-- Prévoir une réaction d'oxydo-réduction --} Terminale\\[4mm]
+  \Large\textcolor{exoheader}{\textbf{GRILLE DE CORRECTION}}\\[2mm]
+  \large Évaluation \textit{-- Probabilités conditionnelles --} 1BTS\\[4mm]
   \normalsize
- 
+  \begin{tabular}{|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{2.2cm}|}
+    \hline
+    \rowcolor{exolight}
+    \textbf{Exercice 1} & \textbf{Exercice 2} & \textbf{Exercice 3} & \textbf{Exercice 4} & \textbf{Total}\\
+    \hline
+    \textit{Vocabulaire} & \textit{Arbre à compléter} & \textit{Construction d'arbre} & \textit{Tableau} & \\
+    \hline
+    /4 pts & /4 pts & /6 pts & /6 pts & \textbf{/20 pts}\\
+    \hline
+    \rule{0pt}{12mm} & & & & \\
+    \hline
+  \end{tabular}
 \end{center}
 
 \vspace{2mm}\hrule\vspace{3mm}
 
 % ============================================================
-\titreexo{Exercice 1 \,--\, Cases à cocher}{/ 6 points}
+\titreexo{Exercice 1 \,--\, Vocabulaire}{/ 4 points}
 
-% --- Question ①
-\textbf{\ding{202}}\enspace Affirmations vraie / fausse
-\hfill\small\textit{0,5 pt par bonne réponse \,--\, sous-total : \textbf{2,5 pts}}
-
-\medskip
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{1.8cm}|}
-\hline
-\rowcolor{BrickRed!15}
-\textbf{Affirmation} & \textbf{Vraie} & \textbf{Fausse} & \textbf{Pts}\\
-\hline
-Une réaction d'oxydo-réduction est un échange de protons
-  & & \rep{\ding{52}} & 0,5\\
-\hline
-Une oxydation est une perte d'électrons
-  & \rep{\ding{52}} & & 0,5\\
-\hline
-Une réduction est un gain d'électrons
-  & \rep{\ding{52}} & & 0,5\\
-\hline
-Un oxydant perd des électrons
-  & & \rep{\ding{52}} & 0,5\\
-\hline
-Le métal cuivre est un réducteur
-  & \rep{\ding{52}} & & 0,5\\
-\hline
-\multicolumn{3}{|r|}{\textbf{Sous-total \ding{202}}}
-  & \rep{\textbf{2,5}}\\
-\hline
-\end{tabularx}
-
-\smallskip
-
-% --- Question ②
-\textbf{\ding{203}}\enspace Ions \ch{Cu\pch[2]} et métal zinc
+\textbf{Partie A -- Vrai ou Faux}
 \hfill\small\textit{0,5 pt par bonne réponse \,--\, sous-total : \textbf{2 pts}}
 
 \medskip
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{2.3cm}|>{\centering\arraybackslash}p{1.8cm}|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|>{\raggedright\arraybackslash}p{5cm}|>{\centering\arraybackslash}p{1.5cm}|}
 \hline
-\rowcolor{BrickRed!15}
-\textbf{Proposition} & \textbf{Oui} & \textbf{Non} & \textbf{Pts}\\
+\rowcolor{exolight}
+\textbf{Affirmation} & \textbf{V / F} & \textbf{Correction si fausse} & \textbf{Pts}\\
 \hline
-L'ion \ch{Cu\pch[2]} est l'oxydant le plus fort
-  & \rep{\ding{52}} & & 0,5\\
+Pour tout événement $A$ : $P(\bar{A}) = 1 + P(A)$
+  & \sol{F} & \solc{$P(\bar{A}) = 1 - P(A)$} & 0,5\\
 \hline
-L'ion \ch{Zn\pch[2]} est l'oxydant le plus fort
-  & & \rep{\ding{52}} & 0,5\\
+Si $A$ et $B$ sont incompatibles alors $P(A \cup B) = P(A) + P(B)$
+  & \sol{V} & & 0,5\\
 \hline
-Le métal cuivre est le réducteur le plus fort
-  & & \rep{\ding{52}} & 0,5\\
+$P_B(A) = \dfrac{P(A \cap B)}{P(B)}$
+  & \sol{V} & & 0,5\\
 \hline
-Le métal zinc est le réducteur le plus fort
-  & \rep{\ding{52}} & & 0,5\\
+Si $A$ et $B$ sont indépendants alors $P(A \cap B) = P(A) + P(B)$
+  & \sol{F} & \solc{$P(A\cap B) = P(A)\times P(B)$} & 0,5\\
 \hline
-\multicolumn{3}{|r|}{\textbf{Sous-total \ding{203}}}
-  & \rep{\textbf{2,0}}\\
+\multicolumn{3}{|r|}{\textbf{Sous-total Partie A}} & \sol{\textbf{2,0}}\\
 \hline
 \end{tabularx}
 
 \smallskip
 
-% --- Question ③
-\textbf{\ding{204}}\enspace Cocher les équations exactes \,--\, réaction \ch{Cu\pch[2]} / \ch{Fe}
-\hfill\small\textit{0,5 pt par équation correcte cochée \,--\, sous-total : \textbf{1,5 pts}}
+\textbf{Partie B -- Associer}
+\hfill\small\textit{0,5 pt par bonne association \,--\, sous-total : \textbf{2 pts}}
 
 \medskip
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{3.2cm}|>{\centering\arraybackslash}p{1.8cm}|}
+\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|}
 \hline
-\rowcolor{BrickRed!15}
-\textbf{Équation} & \textbf{À cocher ?} & \textbf{Pts}\\
+\rowcolor{exolight}
+\textbf{Notation} & \textbf{Association correcte} & \textbf{Pts}\\
 \hline
-\ch{Cu\pch[2] + 2 e\mch[] -> Cu}
-  & \rep{\ding{52}\enspace Oui} & 0,5\\
+$P(A \cup B)$ & \solc{Probabilité que $A$ \textbf{ou} $B$ se réalise} & 0,5\\
 \hline
-\ch{Fe\pch[2] + 2 e\mch[] -> Fe}
-  & \ding{55}\enspace Non & --\\
+$P(A \cap B)$ & \solc{Probabilité que $A$ \textbf{et} $B$ se réalisent simultanément} & 0,5\\
 \hline
-\ch{Cu\pch[2] + Fe -> Cu + Fe\pch[2]}
-  & \rep{\ding{52}\enspace Oui} & 0,5\\
+$P_B(A)$      & \solc{Probabilité de $A$ \textbf{sachant} $B$} & 0,5\\
 \hline
-\ch{Cu -> Cu\pch[2] + 2 e\mch[]}
-  & \ding{55}\enspace Non & --\\
+$P(A)$        & \solc{Probabilité que $A$ se réalise} & 0,5\\
 \hline
-\ch{Fe -> Fe\pch[2] + 2 e\mch[]}
-  & \rep{\ding{52}\enspace Oui} & 0,5\\
-\hline
-\ch{Cu + Fe\pch[2] -> Cu\pch[2] + Fe}
-  & \ding{55}\enspace Non & --\\
-\hline
-\multicolumn{2}{|r|}{\textbf{Sous-total \ding{204}}}
-  & \rep{\textbf{1,5}}\\
-\hline
-\end{tabularx}
-
-\newpage 
-
-% ============================================================
-\titreexo{Exercice 2 \,--\, QCM}{/ 7 points}
-
-\textit{1 pt par bonne réponse. La bonne réponse est indiquée en \rep{rouge}.}
-
-\medskip
-\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{5mm}|>{\raggedright\arraybackslash}p{4.5cm}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|}
-\hline
-\rowcolor{BrickRed!15}
-\textbf{N°} & \textbf{Bonne réponse} & \textbf{Justification / commentaire} & \textbf{Pts}\\
-\hline
-\ding{202}
-  & \rep{Gagne des électrons}
-  & L'oxydant se réduit en gagnant des électrons
-  & 1\\
-\hline
-\ding{203}
-  & \rep{Image B :} \rep{\ch{Ag} dans \ch{Cu\pch[2]}}
-  & \ch{Cu\pch[2]/Cu} moins oxydant que \ch{Ag\pch[]/Ag} $\Rightarrow$ \ch{Cu\pch[2]} ne peut pas oxyder \ch{Ag} $\Rightarrow$ aucun dépôt
-  & 1\\
-\hline
-\ding{204}
-  & \rep{Un gain d'électrons}
-  & Définition de la réduction
-  & 1\\
-\hline
-\ding{205}
-  & \rep{Il se réduit}
-  & \ch{Ag\pch[] + e\mch[] -> Ag} : gain d'électrons = réduction
-  & 1\\
-\hline
-\ding{206}
-  & \rep{Gagnent deux \ch{e\mch[]}}
-  & Demi-équation : \ch{Cu\pch[2] + 2 e\mch[] -> Cu}
-  & 1\\
-\hline
-\ding{207}
-  & \rep{\ch{Al + Cr\pch[3] -> Cr + Al\pch[3]}}
-  & \ch{Cr\pch[3]} plus oxydant $\Rightarrow$ il oxyde \ch{Al} (règle du $\gamma$)
-  & 1\\
-\hline
-\ding{208}
-  & \rep{$\times 2$ la 1\textsuperscript{re}, $\times 3$ la 2\textsuperscript{e}, puis additionner}
-  & PPCM(3,2)~=~6 $\Rightarrow$ $2\,\ch{Al}+3\,\ch{Zn\pch[2]} \longrightarrow 2\,\ch{Al\pch[3]}+3\,\ch{Zn}$
-  & 1\\
-\hline
-\multicolumn{3}{|r|}{\textbf{Total Exercice 2}}
-  & \rep{\textbf{7}}\\
+\multicolumn{2}{|r|}{\textbf{Sous-total Partie B}} & \sol{\textbf{2,0}}\\
 \hline
 \end{tabularx}
 
 % ============================================================
-\titreexo{Exercice 3 \,--\, Béchers}{/ 7 points}
+\titreexo{Exercice 2 \,--\, Arbre à compléter}{/ 4 points}
 
-\textit{Barème détaillé par expérience.}
+\textit{Urne : 4 boules rouges, 6 bleues -- tirage sans remise.}
 
 \medskip
-\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|}
-\hline
-\rowcolor{BrickRed!15}
-\textbf{Expérience} & \textbf{Éléments attendus} & \textbf{Pts}\\
+\textbf{Q1. Branches manquantes} \hfill\small\textit{0,5 pt par valeur correcte \,--\, sous-total : \textbf{2 pts}}
 
-%--- Exp 1 ---
+\medskip
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{4.5cm}|>{\centering\arraybackslash}p{1.5cm}|}
 \hline
-\multirow{2}{3.2cm}{\centering\textbf{Exp~\ding{202}}\\[2pt]\small\ch{Ag} dans \ch{Cu\pch[2]}}
-  & Réponse : \rep{la réaction n'a pas lieu} & 0,5\\
-\cline{2-3}
-  & Justification : \ch{Cu\pch[2]/Cu} est moins oxydant que \ch{Ag\pch[]/Ag}, donc \ch{Cu\pch[2]} ne peut pas oxyder \ch{Ag} & 0,5\\
-
-
-%--- Exp 2 ---
+\rowcolor{exolight}
+\textbf{Branche / probabilité} & \textbf{Valeur attendue} & \textbf{Pts}\\
 \hline
-\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{203}}\\[2pt]\small\ch{Zn} dans \ch{Pt\pch[2]}}
-  & Réponse : \rep{la réaction a lieu} (\ch{Pt\pch[2]} plus oxydant que \ch{Zn\pch[2]}) & 0,5\\
-\cline{2-3}
-  & Demi-éq. de réduction : \rep{\ch{Pt\pch[2] + 2 e\mch[] -> Pt}} & 0,5\\
-\cline{2-3}
-  & Demi-éq. d'oxydation : \rep{\ch{Zn -> Zn\pch[2] + 2 e\mch[]}} & 0,5\\
-\cline{2-3}
-  & Équation bilan (électrons s'annulent directement) : \rep{\ch{Pt\pch[2] + Zn -> Pt + Zn\pch[2]}} & 0,5\\
-
-%--- Exp 3 ---
+$P(B)$ (branche bleue, 1\textsuperscript{er} tirage) & \sol{$\dfrac{6}{10} = \dfrac{3}{5}$} & 0,5\\
 \hline
-\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{204}}\\[2pt]\small\ch{Al} dans \ch{Sn\pch[2]}}
-  & Réponse : \rep{la réaction a lieu} (\ch{Sn\pch[2]} plus oxydant que \ch{Al\pch[3]}) & 0,5\\
-\cline{2-3}
-  & Demi-éq. de réduction ($\times 3$) : \rep{\ch{Sn\pch[2] + 2 e\mch[] -> Sn}} & 0,5\\
-\cline{2-3}
-  & Demi-éq. d'oxydation ($\times 2$) : \rep{\ch{Al -> Al\pch[3] + 3 e\mch[]}} & 0,5\\
-\cline{2-3}
-  & Équation bilan (PPCM(2,3)~=~6) : \rep{$3\,\ch{Sn\pch[2]} + 2\,\ch{Al} \longrightarrow 3\,\ch{Sn} + 2\,\ch{Al\pch[3]}$} & 0,5\\
-
-%--- Exp 4 ---
+$P_{R}(R)$ (rouge $|$ rouge au 1\textsuperscript{er} tirage) & \sol{$\dfrac{3}{9} = \dfrac{1}{3}$} & 0,5\\
 \hline
-\multirow{4}{3.2cm}{\centering\textbf{Exp~\ding{205}}\\[2pt]\small\ch{Mg} dans \ch{Fe\pch[2]}}
-  & Réponse : \rep{la réaction a lieu} (\ch{Fe\pch[2]} plus oxydant que \ch{Mg\pch[2]}) & 0,5\\
-\cline{2-3}
-  & Demi-éq. de réduction : \rep{\ch{Fe\pch[2] + 2 e\mch[] -> Fe}} & 0,5\\
-\cline{2-3}
-  & Demi-éq. d'oxydation : \rep{\ch{Mg -> Mg\pch[2] + 2 e\mch[]}} & 0,5\\
-\cline{2-3}
-  & Équation bilan (électrons s'annulent directement) : \rep{\ch{Fe\pch[2] + Mg -> Fe + Mg\pch[2]}} & 0,5\\
+$P_{B}(B)$ (bleue $|$ bleue au 1\textsuperscript{er} tirage) & \sol{$\dfrac{5}{9}$} & 0,5\\
 \hline
+Probabilités des 4 feuilles & \solc{$P(R,R)=\frac{2}{15}$ \quad $P(R,B)=\frac{4}{15}$ \quad $P(B,R)=\frac{4}{15}$ \quad $P(B,B)=\frac{1}{3}$} & 0,5\\
+\hline
+\multicolumn{2}{|r|}{\textbf{Sous-total Q1}} & \sol{\textbf{2,0}}\\
+\hline
+\end{tabularx}
 
-\multicolumn{2}{|r|}{\textbf{Total Exercice 3}} & \rep{\textbf{7,0}}\\
+\smallskip
+
+\textbf{Q2.} Probabilité d'obtenir deux boules rouges \hfill\textit{(1 pt)}
+
+\medskip
+\sol{$P(R,R) = \dfrac{2}{5} \times \dfrac{1}{3} = \dfrac{2}{15}$}
+\hfill\textit{Calcul correct : 0,5 pt \,+\, résultat : 0,5 pt}
+
+\smallskip
+
+\textbf{Q3.} Probabilité d'obtenir au moins une boule rouge \hfill\textit{(1 pt)}
+
+\medskip
+\sol{$P(\text{au moins un rouge}) = 1 - P(B,B) = 1 - \dfrac{1}{3} = \dfrac{2}{3}$}
+\hfill\textit{Méthode complémentaire ou somme directe acceptée : 0,5 + 0,5}
+
+% ============================================================
+\titreexo{Exercice 3 \,--\, Construction et utilisation d'un arbre}{/ 6 points}
+
+\textit{Fournisseurs $S_1$ (40\,\%) et $S_2$ (60\,\%) -- taux de défectueux : 4\,\% et 2\,\%.}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{5mm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{6cm}|>{\centering\arraybackslash}p{1.5cm}|}
+\hline
+\rowcolor{exolight}
+\textbf{Q} & \textbf{Éléments attendus} & \textbf{Résultat / commentaire} & \textbf{Pts}\\
+\hline
+1
+  & Arbre correctement construit avec toutes les branches et probabilités étiquetées
+  & \solc{$P(S_1)=0{,}4$, $P(S_2)=0{,}6$, $P_{{S_1}}(D)=0{,}04$, $P_{{S_1}}(\bar{D})=0{,}96$, $P_{{S_2}}(D)=0{,}02$, $P_{{S_2}}(\bar{D})=0{,}98$}
+  & 2\\
+\hline
+2
+  & $P(S_1\cap D) = P(S_1)\times P_{S_1}(D)$ et idem pour $S_2$
+  & \sol{$P(S_1\cap D)=0{,}016$} \newline \sol{$P(S_2\cap D)=0{,}012$}
+  & 1\\
+\hline
+3
+  & Formule des probabilités totales : $P(D)=P(S_1\cap D)+P(S_2\cap D)$
+  & \sol{$P(D) = 0{,}016 + 0{,}012 = 0{,}028$}
+  & 1\\
+\hline
+\multirow{2}{*}{4}
+  & Formule de Bayes : $P_D(S_1) = \dfrac{P(S_1\cap D)}{P(D)}$
+  & \sol{$P_D(S_1) = \dfrac{0{,}016}{0{,}028} = \dfrac{4}{7} \approx 0{,}571$}
+  & 1\\
+\cline{2-4}
+  & Interprétation correcte en français
+  & \solc{Parmi les composants défectueux, environ 57,1\,\% proviennent de $S_1$}
+  & 1\\
+\hline
+\multicolumn{3}{|r|}{\textbf{Total Exercice 3}} & \sol{\textbf{6}}\\
+\hline
+\end{tabularx}
+
+% ============================================================
+\titreexo{Exercice 4 \,--\, Tableau de probabilités}{/ 6 points}
+
+\textit{$\np{2000}$ patients -- Service $A$ : 60\,\% avec 8\,\% de complications -- Service $B$ : 40\,\% avec 5\,\% de complications.}
+
+\medskip
+\textbf{Q1. Tableau complété} \hfill\small\textit{0,5 pt par case correcte \,--\, sous-total : \textbf{2 pts}}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.8cm}|}
+\hline
+\rowcolor{exolight}
+ & \textbf{Service $A$} & \textbf{Service $B$} & \textbf{Total}\\
+\hline
+Avec complication $C$       & \sol{96}    & \sol{40}   & \sol{136}\\
+\hline
+Sans complication $\bar{C}$ & \sol{1\,104} & \sol{760}  & \sol{1\,864}\\
+\hline
+Total                        & \sol{1\,200} & \sol{800}  & $\np{2000}$\\
+\hline
+\end{tabularx}
+
+\smallskip
+\solc{\small $A$ : $60\,\%\times\np{2000}=\np{1200}$ \quad avec $C$ : $8\,\%\times\np{1200}=96$ \qquad
+      $B$ : $40\,\%\times\np{2000}=800$ \quad avec $C$ : $5\,\%\times 800=40$}
+
+\medskip
+\begin{tabularx}{\linewidth}{|>{\centering\arraybackslash}p{5mm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{5.5cm}|>{\centering\arraybackslash}p{1.5cm}|}
+\hline
+\rowcolor{exolight}
+\textbf{Q} & \textbf{Éléments attendus} & \textbf{Résultat} & \textbf{Pts}\\
+\hline
+2
+  & $P(C) = \dfrac{\text{total }C}{\text{total}}$
+  & \sol{$P(C) = \dfrac{136}{\np{2000}} = 0{,}068$}
+  & 1\\
+\hline
+\multirow{2}{*}{3}
+  & Définition de $A \cap C$ en français
+  & \solc{Patient dans service $A$ \textbf{et} présentant une complication}
+  & 0,5\\
+\cline{2-4}
+  & Calcul de $P(A \cap C)$
+  & \sol{$P(A\cap C) = \dfrac{96}{\np{2000}} = 0{,}048$}
+  & 0,5\\
+\hline
+\multirow{2}{*}{4}
+  & $P_C(A) = \dfrac{P(A\cap C)}{P(C)}$
+  & \sol{$P_C(A) = \dfrac{0{,}048}{0{,}068} = \dfrac{12}{17} \approx 0{,}706$}
+  & 1\\
+\cline{2-4}
+  & Interprétation correcte en français
+  & \solc{Parmi les patients avec complication, environ 70,6\,\% sont en service $A$}
+  & 1\\
+\hline
+\multicolumn{3}{|r|}{\textbf{Total Exercice 4}} & \sol{\textbf{6}}\\
 \hline
 \end{tabularx}
 
 \vspace{6mm}
 
-
+\begin{center}
+  \colorbox{exolight}{%
+    \parbox{8cm}{\centering
+      \vspace{3mm}
+      \textbf{\textcolor{exoheader}{Note finale : \rule{2.5cm}{0.4pt} / 20 points}}\\[3mm]
+    }%
+  }
+\end{center}
 
 \end{document}
