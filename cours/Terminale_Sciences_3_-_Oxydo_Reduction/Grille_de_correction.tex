@@ -14,8 +14,6 @@
 \usepackage{fancyhdr}
 \usepackage{colortbl}
 \usepackage{pifont}
-\usepackage{tcolorbox}
-\tcbuselibrary{skins,breakable}
 \usepackage{chemmacros}
 \chemsetup{modules=all}
 
@@ -32,41 +30,16 @@
 \definecolor{repcolor}{RGB}{180,0,0}
 \newcommand{\rep}[1]{\textcolor{repcolor}{\textbf{#1}}}
 
-\renewcommand{\arraystretch}{1.55}
-
-%------ Style tcolorbox exercices ------
-\tcbset{
-  exostyle/.style={
-    enhanced,
-    breakable,
-    colback=white,
-    colframe=BrickRed,
-    coltitle=white,
-    colbacktitle=BrickRed,
-    fonttitle=\bfseries,
-    attach boxed title to top left={yshift=-2.5mm, xshift=5mm},
-    boxed title style={colback=BrickRed, sharp corners, colframe=BrickRed},
-    top=7mm,
-    left=3mm,
-    right=3mm,
-    bottom=3mm,
-  }
+% Titre d'exercice sans tcolorbox
+\newcommand{\titreexo}[2]{%
+  \vspace{4mm}%
+  \noindent\colorbox{BrickRed}{\color{white}\bfseries\strut\enspace #1\enspace}%
+  \hfill\textbf{#2}%
+  \vspace{1mm}\par\noindent\textcolor{BrickRed}{\rule{\linewidth}{1pt}}\par
+  \vspace{2mm}%
 }
 
-%------ Style tcolorbox récap note ------
-\tcbset{
-  notestyle/.style={
-    enhanced,
-    colback=BrickRed!8,
-    colframe=BrickRed,
-    fonttitle=\bfseries,
-    coltitle=white,
-    colbacktitle=BrickRed,
-    halign=center,
-    center,
-    width=8cm,
-  }
-}
+\renewcommand{\arraystretch}{1.5}
 
 % ============================================================
 \begin{document}
@@ -75,14 +48,13 @@
   \Large\rep{GRILLE DE CORRECTION}\\[2mm]
   \large Évaluation \textit{-- Prévoir une réaction d'oxydo-réduction --} Terminale\\[4mm]
   \normalsize
-
+ 
 \end{center}
 
-\vspace{3mm}\hrule\vspace{5mm}
+\vspace{2mm}\hrule\vspace{3mm}
 
 % ============================================================
-\begin{tcolorbox}[exostyle,
-  title=Exercice 1 \,--\, Cases à cocher \hfill\textbf{/ 6 points}]
+\titreexo{Exercice 1 \,--\, Cases à cocher}{/ 6 points}
 
 % --- Question ①
 \textbf{\ding{202}}\enspace Affirmations vraie / fausse
@@ -114,7 +86,7 @@ Le métal cuivre est un réducteur
 \hline
 \end{tabularx}
 
-\bigskip
+\smallskip
 
 % --- Question ②
 \textbf{\ding{203}}\enspace Ions \ch{Cu\pch[2]} et métal zinc
@@ -143,7 +115,7 @@ Le métal zinc est le réducteur le plus fort
 \hline
 \end{tabularx}
 
-\bigskip
+\smallskip
 
 % --- Question ③
 \textbf{\ding{204}}\enspace Cocher les équations exactes \,--\, réaction \ch{Cu\pch[2]} / \ch{Fe}
@@ -178,15 +150,10 @@ Le métal zinc est le réducteur le plus fort
 \hline
 \end{tabularx}
 
-\end{tcolorbox}
-
-\vspace{5mm}
-
-\newpage
+\newpage 
 
 % ============================================================
-\begin{tcolorbox}[exostyle,
-  title=Exercice 2 \,--\, QCM \hfill\textbf{/ 7 points}]
+\titreexo{Exercice 2 \,--\, QCM}{/ 7 points}
 
 \textit{1 pt par bonne réponse. La bonne réponse est indiquée en \rep{rouge}.}
 
@@ -236,13 +203,8 @@ Le métal zinc est le réducteur le plus fort
 \hline
 \end{tabularx}
 
-\end{tcolorbox}
-
-\vspace{5mm}
-
 % ============================================================
-\begin{tcolorbox}[exostyle,
-  title=Exercice 3 \,--\, Béchers \hfill\textbf{/ 7 points}]
+\titreexo{Exercice 3 \,--\, Béchers}{/ 7 points}
 
 \textit{Barème détaillé par expérience.}
 
@@ -258,8 +220,7 @@ Le métal zinc est le réducteur le plus fort
   & Réponse : \rep{la réaction n'a pas lieu} & 0,5\\
 \cline{2-3}
   & Justification : \ch{Cu\pch[2]/Cu} est moins oxydant que \ch{Ag\pch[]/Ag}, donc \ch{Cu\pch[2]} ne peut pas oxyder \ch{Ag} & 0,5\\
-\hline
-\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{202}}} & \rep{\textbf{1,0}}\\
+
 
 %--- Exp 2 ---
 \hline
@@ -271,8 +232,6 @@ Le métal zinc est le réducteur le plus fort
   & Demi-éq. d'oxydation : \rep{\ch{Zn -> Zn\pch[2] + 2 e\mch[]}} & 0,5\\
 \cline{2-3}
   & Équation bilan (électrons s'annulent directement) : \rep{\ch{Pt\pch[2] + Zn -> Pt + Zn\pch[2]}} & 0,5\\
-\hline
-\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{203}}} & \rep{\textbf{2,0}}\\
 
 %--- Exp 3 ---
 \hline
@@ -284,8 +243,6 @@ Le métal zinc est le réducteur le plus fort
   & Demi-éq. d'oxydation ($\times 2$) : \rep{\ch{Al -> Al\pch[3] + 3 e\mch[]}} & 0,5\\
 \cline{2-3}
   & Équation bilan (PPCM(2,3)~=~6) : \rep{$3\,\ch{Sn\pch[2]} + 2\,\ch{Al} \longrightarrow 3\,\ch{Sn} + 2\,\ch{Al\pch[3]}$} & 0,5\\
-\hline
-\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{204}}} & \rep{\textbf{2,0}}\\
 
 %--- Exp 4 ---
 \hline
@@ -298,16 +255,13 @@ Le métal zinc est le réducteur le plus fort
 \cline{2-3}
   & Équation bilan (électrons s'annulent directement) : \rep{\ch{Fe\pch[2] + Mg -> Fe + Mg\pch[2]}} & 0,5\\
 \hline
-\multicolumn{2}{|r|}{\textit{Sous-total Exp~\ding{205}}} & \rep{\textbf{2,0}}\\
 
-\hline
 \multicolumn{2}{|r|}{\textbf{Total Exercice 3}} & \rep{\textbf{7,0}}\\
 \hline
 \end{tabularx}
 
-\end{tcolorbox}
+\vspace{6mm}
 
-\vspace{8mm}
 
 
 \end{document}
