@@ -6,6 +6,7 @@
 <title>LaTeX Studio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;flex-direction:column}
@@ -230,6 +231,10 @@ body.light .pal-check{color:#1a5a99}
 .ghdot.ok{background:#4dcc88}
 .ghdot.spin{background:#cc8800;animation:blink 0.7s infinite}
 .ghdot.err{background:#cc3030}
+.btn-drive{background:#1a1a2e!important;color:#c0c0d0!important}
+.btn-drive.connected{background:#1a1a2e!important;color:#9aa0aa!important;border-color:#3a3a5a!important}
+.btn-drive.syncing{color:#cc8800!important;border-color:#664a1a!important}
+.btn-drive.err{color:#ff6060!important;border-color:#5a2a2a!important}
 
 .dsync{font-size:10px;margin-right:4px;flex-shrink:0;width:11px;text-align:center}
 .dsync.ok{color:#4dcc88}
@@ -307,6 +312,8 @@ body.light .btn-save{background:#e6f5ec!important;color:#1a6644!important;border
 body.light .btn-save:hover{background:#cce8d8!important}
 body.light .btn-gh{background:#ffffff!important;color:#3a3a5a!important;border-color:#d0d0e0!important}
 body.light .btn-gh.connected{color:#1a6644!important;border-color:#a8d4be!important}
+body.light .btn-drive{background:#ffffff!important;color:#3a3a5a!important;border-color:#d0d0e0!important}
+body.light .btn-drive.connected{color:#1a6644!important;border-color:#a8d4be!important}
 body.light .asbadge{color:#a0a0aa}
 body.light .asbadge.saved{color:#1a8a4a}
 body.light .sidebar{background:#ececf5;border-right-color:#d8d8e4}
@@ -416,10 +423,10 @@ body.light ::-webkit-scrollbar-thumb{background:#c0c0d0}
     <button onclick="toggleTheme()" id="themeBtn" title="Basculer le thème clair/foncé" style="padding:5px 9px">
       <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
-    <button class="btn-gh" onclick="openGhModal()" id="ghBtn" title="Synchronisation GitHub">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.9 1.2 1.9 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.1-.4-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.6-2.8 5.6-5.5 5.9.5.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
-      <span id="ghBtnLabel">GitHub</span>
-      <span id="ghBtnDot" class="ghdot"></span>
+    <button class="btn-drive" onclick="openDrvModal()" id="drvBtn" title="Synchronisation Google Drive">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M7.7 3l-6 10.4L4.85 19 10.8 8.6zM22.3 13.4L16.35 3H9.9l6 10.4zM5.6 20h12.8l3.15-5.5H8.75z"/></svg>
+      <span id="drvBtnLabel">Drive</span>
+      <span id="drvBtnDot" class="ghdot"></span>
     </button>
     <button class="btn-save" onclick="openSaveModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -585,6 +592,52 @@ body.light ::-webkit-scrollbar-thumb{background:#c0c0d0}
       <div class="ghspacer"></div>
       <button onclick="ghClear()" class="ghdanger" title="Supprimer la config locale">Oublier</button>
       <button onclick="closeGhMod()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="drvmbg">
+  <div class="ghmodal">
+    <div class="ghmodal-hdr">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="#e0e0e0"><path d="M7.7 3l-6 10.4L4.85 19 10.8 8.6zM22.3 13.4L16.35 3H9.9l6 10.4zM5.6 20h12.8l3.15-5.5H8.75z"/></svg>
+      <h3>Synchronisation Google Drive</h3>
+      <span class="ghst" id="drvst">Non connecté</span>
+    </div>
+    <div class="ghmodal-body">
+      <div class="ghfield">
+        <label>Compte Google</label>
+        <div class="gfhint" id="drvAccount" style="margin-top:2px">
+          Connecte le compte dédié (ex. <b>offsiderecords@gmail.com</b>). Une fenêtre Google s'ouvrira. Aucun mot de passe n'est stocké dans l'application ; l'accès dure environ 1 h par session.
+        </div>
+      </div>
+      <div class="ghfield">
+        <label>Dossier racine dans le Drive</label>
+        <input type="text" id="drvRootName" placeholder="LaTeX Studio" value="LaTeX Studio" autocomplete="off">
+        <div class="gfhint">Tous tes documents seront rangés dans ce dossier (créé automatiquement). Tes sous-dossiers deviennent des sous-dossiers Drive.</div>
+      </div>
+      <div class="ghfield">
+        <label class="ghtoggle">
+          <input type="checkbox" id="drvAuto"> Pousser automatiquement à chaque sauvegarde
+        </label>
+      </div>
+    </div>
+    <div class="ghlog" id="drvlog"></div>
+    <div class="ghactions">
+      <button onclick="drvAuth()" id="drvAuthBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Connecter le compte
+      </button>
+      <button onclick="drvPullAll()" class="ghpull" id="drvPullBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Tout récupérer
+      </button>
+      <button onclick="drvPushAll()" class="ghprim" id="drvPushBtn">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Tout pousser
+      </button>
+      <div class="ghspacer"></div>
+      <button onclick="drvClear()" class="ghdanger" title="Déconnecter et oublier la config Drive locale">Déconnecter</button>
+      <button onclick="closeDrvMod()">Fermer</button>
     </div>
   </div>
 </div>
@@ -1056,10 +1109,15 @@ window.addEventListener('load',()=>{
   applyTheme(localStorage.getItem('ltx_theme')||'dark');
   setupFileDrop();
   updateGhStatus();
+  updateDrvStatus();
 
   // Close GitHub modal on backdrop click
   document.getElementById('ghmbg').addEventListener('click',e=>{
     if(e.target===document.getElementById('ghmbg'))closeGhMod();
+  });
+  // Close Drive modal on backdrop click
+  document.getElementById('drvmbg').addEventListener('click',e=>{
+    if(e.target===document.getElementById('drvmbg'))closeDrvMod();
   });
 
   const docs=getDocs(),lastId=getLastId();
@@ -1123,6 +1181,7 @@ async function ghFetch(path,opts={}){
 
 function ghSetBadge(state,label){
   const btn=document.getElementById('ghBtn');
+  if(!btn)return; // bouton GitHub retiré de l'interface
   const dot=document.getElementById('ghBtnDot');
   const lbl=document.getElementById('ghBtnLabel');
   btn.classList.remove('connected','syncing','err');
@@ -1493,10 +1552,7 @@ async function ghPushCurrent(docId,e){
 // Auto-push trigger (debounced)
 let _autoPushTimer=null;
 function scheduleAutoPush(docId){
-  const c=getGhCfg();
-  if(!c.auto||!ghReady())return;
-  clearTimeout(_autoPushTimer);
-  _autoPushTimer=setTimeout(()=>{ghPushDoc(docId,{silent:true});},3000);
+  return; // GitHub retiré de l'interface — auto-push désactivé (voir Drive : scheduleDrivePush)
 }
 
 function ghStateFor(doc){
@@ -1718,7 +1774,7 @@ function autoSave(){
   saveDocs(docs);
   setBadge('Sauvegardé',true);
   renderDocs();
-  scheduleAutoPush(currentId);
+  scheduleDrivePush(currentId);
 }
 
 function setBadge(txt,ok){
@@ -1840,10 +1896,10 @@ function renderDocs(){
   projsUnfiled.sort((a,b)=>b.updatedAt-a.updatedAt);
 
   function docItemHtml(d,extraClass){
-    const st=ghStateFor(d);
-    const ic=ghStateIcon(st);
-    const t=ghStateTitle(st);
-    const syncBtn=(st==='off')?'':`<button class="dsync ${st}" title="${esc(t)}" onclick="ghPushCurrent('${d.id}',event)">${ic}</button>`;
+    const st=drvStateFor(d);
+    const ic=drvStateIcon(st);
+    const t=drvStateTitle(st);
+    const syncBtn=(st==='off')?'':`<button class="dsync ${st}" title="${esc(t)}" onclick="drvPushCurrent('${d.id}',event)">${ic}</button>`;
     const isMain=d.projectId&&(()=>{const p=getProject(d.projectId);return p&&p.mainPath===d.projectPath;})();
     const mainBadge=isMain?'<span class="mainbadge" title="Fichier principal du projet">main</span>':'';
     // No rename/move button for project-internal docs (their path is fixed inside the project)
@@ -2335,6 +2391,316 @@ function openPdfFull(){
   form.submit();
   setTimeout(()=>form.remove(),100);
 }
+</script>
+<script>
+// ========================= Google Drive sync =========================
+// Jumeau du bloc GitHub. Auth via Google Identity Services (token model,
+// scope drive.file). Le token vit en mémoire uniquement (jamais stocké).
+const DRIVE_CLIENT_ID='424452379598-mekqd94evj6l6kc2qqt526h4pmi2gt3a.apps.googleusercontent.com';
+const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+
+let _drvToken=null, _drvTokenExp=0, _drvTokenClient=null, _drvEmail=null;
+let _drvFolderCache={};              // "dossier/chemin" -> fileId (mémoire, par session)
+let _drvResolve=null, _drvReject=null, _drvPushTimer=null;
+
+function getDrvCfg(){try{return JSON.parse(localStorage.getItem('ltx_drive')||'{}')}catch{return{}}}
+function setDrvCfg(c){localStorage.setItem('ltx_drive',JSON.stringify(c))}
+function drvConnected(){return !!_drvToken && Date.now()<_drvTokenExp;}
+
+// ---- Badge du bouton toolbar ----
+function drvSetBadge(state,label){
+  const btn=document.getElementById('drvBtn');
+  const dot=document.getElementById('drvBtnDot');
+  const lbl=document.getElementById('drvBtnLabel');
+  btn.classList.remove('connected','syncing','err');
+  dot.className='ghdot';
+  if(state==='ok'){btn.classList.add('connected');dot.classList.add('ok');}
+  else if(state==='spin'){btn.classList.add('syncing');dot.classList.add('spin');}
+  else if(state==='err'){btn.classList.add('err');dot.classList.add('err');}
+  if(label!==undefined)lbl.textContent=label;
+}
+
+// ---- Modale ----
+function openDrvModal(){
+  const c=getDrvCfg();
+  document.getElementById('drvRootName').value=c.rootName||'LaTeX Studio';
+  document.getElementById('drvAuto').checked=!!c.auto;
+  document.getElementById('drvlog').classList.remove('show');
+  updateDrvStatus();
+  document.getElementById('drvmbg').classList.add('open');
+}
+function closeDrvMod(){
+  const c=getDrvCfg();
+  c.rootName=document.getElementById('drvRootName').value.trim()||'LaTeX Studio';
+  c.auto=document.getElementById('drvAuto').checked;
+  setDrvCfg(c);
+  document.getElementById('drvmbg').classList.remove('open');
+  updateDrvStatus();
+  renderDocs();
+}
+function drvClear(){
+  if(!confirm('Déconnecter Google Drive et effacer la configuration locale ?'))return;
+  if(_drvToken){try{google.accounts.oauth2.revoke(_drvToken,()=>{});}catch(e){}}
+  _drvToken=null;_drvTokenExp=0;_drvEmail=null;_drvFolderCache={};
+  localStorage.removeItem('ltx_drive');
+  const docs=getDocs();docs.forEach(d=>{delete d.drvId;delete d.drvSyncedAt;delete d.drvSyncedContent;delete d.drvSyncState;});saveDocs(docs);
+  document.getElementById('drvRootName').value='LaTeX Studio';
+  document.getElementById('drvAuto').checked=false;
+  drvSetBadge('','Drive');
+  drvLog('Déconnecté. Configuration effacée.',false);
+  updateDrvStatus();renderDocs();
+}
+function updateDrvStatus(){
+  const st=document.getElementById('drvst');
+  if(drvConnected()){
+    st.textContent='Connecté'+(_drvEmail?(' • '+_drvEmail):'');
+    st.className='ghst ok';
+    drvSetBadge('ok','Drive');
+  }else{
+    st.textContent='Non connecté';
+    st.className='ghst';
+    drvSetBadge('','Drive');
+  }
+}
+function drvLog(msg,err){
+  const el=document.getElementById('drvlog');
+  el.classList.add('show');
+  el.classList.toggle('err',!!err);
+  el.classList.toggle('ok',!err);
+  el.textContent=msg;
+}
+
+// ---- Auth (token model) ----
+function drvInitClient(){
+  if(_drvTokenClient)return true;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return false;
+  _drvTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:DRIVE_CLIENT_ID,
+    scope:DRIVE_SCOPE,
+    callback:(resp)=>{
+      if(resp&&resp.access_token){
+        _drvToken=resp.access_token;
+        _drvTokenExp=Date.now()+((resp.expires_in||3600)-60)*1000;
+        if(_drvResolve){_drvResolve(resp.access_token);_drvResolve=null;_drvReject=null;}
+      }else if(_drvReject){_drvReject(new Error((resp&&resp.error)||'auth_failed'));_drvReject=null;_drvResolve=null;}
+    },
+    error_callback:(err)=>{if(_drvReject){_drvReject(new Error((err&&err.type)||'popup_error'));_drvReject=null;_drvResolve=null;}}
+  });
+  return true;
+}
+function drvRequestToken(){
+  return new Promise((resolve,reject)=>{
+    if(!drvInitClient()){reject(new Error('Google non chargé — réessaie dans un instant.'));return;}
+    _drvResolve=resolve;_drvReject=reject;
+    try{_drvTokenClient.requestAccessToken({prompt:_drvToken?'':'consent'});}
+    catch(e){reject(e);_drvResolve=null;_drvReject=null;}
+  });
+}
+async function drvEnsureToken(interactive){
+  if(drvConnected())return _drvToken;
+  if(!interactive)throw new Error('not_connected');
+  return await drvRequestToken();
+}
+async function drvAuth(){
+  drvLog('Ouverture de la fenêtre Google…',false);
+  try{
+    await drvRequestToken();
+    try{
+      const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');
+      if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}
+    }catch(e){}
+    updateDrvStatus();
+    drvLog('✓ Connecté'+(_drvEmail?(' : '+_drvEmail):'')+'.',false);
+  }catch(e){drvLog('Échec de connexion : '+(e.message||e),true);drvSetBadge('err','Drive');}
+}
+
+// ---- Wrapper API (relance auth sur 401) ----
+async function drvApi(url,opts={},_retry){
+  const token=await drvEnsureToken(true);
+  const headers=Object.assign({'Authorization':'Bearer '+token},opts.headers||{});
+  const res=await fetch(url,Object.assign({},opts,{headers}));
+  if(res.status===401&&!_retry){
+    _drvToken=null;_drvTokenExp=0;
+    await drvRequestToken();
+    return drvApi(url,opts,true);
+  }
+  return res;
+}
+
+// ---- Dossiers (find-or-create) ----
+async function drvEnsureRoot(){
+  const c=getDrvCfg();
+  const rootName=c.rootName||'LaTeX Studio';
+  if(c.rootId){
+    const r=await drvApi('https://www.googleapis.com/drive/v3/files/'+c.rootId+'?fields=id,trashed');
+    if(r.ok){const j=await r.json();if(!j.trashed)return c.rootId;}
+  }
+  const q=encodeURIComponent("name='"+rootName.replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents");
+  const r=await drvApi('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)&spaces=drive');
+  if(r.ok){const j=await r.json();if(j.files&&j.files.length){c.rootId=j.files[0].id;setDrvCfg(c);return c.rootId;}}
+  const cr=await drvApi('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:rootName,mimeType:'application/vnd.google-apps.folder'})});
+  if(!cr.ok){const t=await cr.text();throw new Error('Création dossier racine '+cr.status+': '+t.slice(0,200));}
+  const cj=await cr.json();c.rootId=cj.id;setDrvCfg(c);return c.rootId;
+}
+async function drvEnsureFolderPath(folderPath){
+  const rootId=await drvEnsureRoot();
+  if(!folderPath)return rootId;
+  let parent=rootId, acc='';
+  for(const seg of folderPath.split('/')){
+    if(!seg)continue;
+    acc=acc?acc+'/'+seg:seg;
+    if(_drvFolderCache[acc]){parent=_drvFolderCache[acc];continue;}
+    const q=encodeURIComponent("name='"+seg.replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false and '"+parent+"' in parents");
+    const r=await drvApi('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)&spaces=drive');
+    let id=null;
+    if(r.ok){const j=await r.json();if(j.files&&j.files.length)id=j.files[0].id;}
+    if(!id){
+      const cr=await drvApi('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:seg,mimeType:'application/vnd.google-apps.folder',parents:[parent]})});
+      if(!cr.ok){const t=await cr.text();throw new Error('Création dossier '+cr.status+': '+t.slice(0,200));}
+      const cj=await cr.json();id=cj.id;
+    }
+    _drvFolderCache[acc]=id;parent=id;
+  }
+  return parent;
+}
+function drvFileName(doc){return (doc.name||'document').replace(/[\/\\]/g,'_').slice(0,120)+'.tex';}
+
+// ---- Push d'un document ----
+async function drvPushDoc(docId,opts={silent:false}){
+  if(!drvConnected()&&!opts.interactive)return {ok:false,reason:'not_connected'};
+  const docs=getDocs();const i=docs.findIndex(d=>d.id===docId);
+  if(i===-1)return {ok:false,reason:'not_found'};
+  const doc=docs[i];
+  setDrvSync(docId,'spin');renderDocs();
+  try{
+    const folderId=await drvEnsureFolderPath(doc.folder||'');
+    const name=drvFileName(doc);
+    const content=doc.content||'';
+    const boundary='ltxstudio'+Math.random().toString(36).slice(2);
+    const meta=doc.drvId?{name}:{name,parents:[folderId]};
+    const body='--'+boundary+'\r\n'+
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n'+
+      '--'+boundary+'\r\n'+
+      'Content-Type: application/x-tex; charset=UTF-8\r\n\r\n'+content+'\r\n'+
+      '--'+boundary+'--';
+    let url,method;
+    if(doc.drvId){url='https://www.googleapis.com/upload/drive/v3/files/'+doc.drvId+'?uploadType=multipart&fields=id';method='PATCH';}
+    else{url='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';method='POST';}
+    const r=await drvApi(url,{method,headers:{'Content-Type':'multipart/related; boundary='+boundary},body});
+    if(!r.ok){const t=await r.text();throw new Error(method+' '+r.status+': '+t.slice(0,200));}
+    const j=await r.json();
+    const docs2=getDocs();const i2=docs2.findIndex(d=>d.id===docId);
+    if(i2!==-1){docs2[i2].drvId=j.id;docs2[i2].drvSyncedAt=Date.now();docs2[i2].drvSyncedContent=docs2[i2].content;saveDocs(docs2);}
+    setDrvSync(docId,'ok');renderDocs();
+    return {ok:true};
+  }catch(e){
+    setDrvSync(docId,'err');
+    if(!opts.silent)alert('Erreur push Drive : '+(e.message||e));
+    renderDocs();
+    return {ok:false,error:e};
+  }
+}
+function setDrvSync(id,state){const docs=getDocs();const i=docs.findIndex(d=>d.id===id);if(i===-1)return;docs[i].drvSyncState=state;saveDocs(docs);}
+
+// ---- Push all ----
+async function drvPushAll(){
+  const c=getDrvCfg();
+  c.rootName=document.getElementById('drvRootName').value.trim()||'LaTeX Studio';
+  c.auto=document.getElementById('drvAuto').checked;setDrvCfg(c);
+  try{await drvEnsureToken(true);}catch(e){drvLog('Connexion requise : '+(e.message||e),true);return;}
+  updateDrvStatus();
+  if(currentId)autoSave();
+  const docs=getDocs();
+  const btn=document.getElementById('drvPushBtn');btn.disabled=true;
+  let ok=0,fail=0;
+  for(const d of docs){drvLog('Push : '+d.name+'…',false);const r=await drvPushDoc(d.id,{silent:true,interactive:true});if(r.ok)ok++;else fail++;}
+  drvLog((fail?'⚠ ':'✓ ')+ok+' document(s) poussé(s)'+(fail?', '+fail+' échec(s).':' avec succès.'),fail>0);
+  btn.disabled=false;
+}
+
+// ---- Pull all (récursif) ----
+async function drvPullAll(){
+  const c=getDrvCfg();
+  c.rootName=document.getElementById('drvRootName').value.trim()||'LaTeX Studio';
+  c.auto=document.getElementById('drvAuto').checked;setDrvCfg(c);
+  try{await drvEnsureToken(true);}catch(e){drvLog('Connexion requise : '+(e.message||e),true);return;}
+  updateDrvStatus();
+  if(!confirm('Récupérer tous les fichiers .tex du dossier Drive (récursivement) ?\n\nLes documents portant le même nom seront mis à jour ; les autres seront ajoutés.'))return;
+  const btn=document.getElementById('drvPullBtn');btn.disabled=true;
+  try{
+    const rootId=await drvEnsureRoot();
+    drvLog('Récupération de l\'arborescence…',false);
+    const files=[];
+    async function walk(folderId,relPath){
+      let pageToken='';
+      do{
+        const q=encodeURIComponent("'"+folderId+"' in parents and trashed=false");
+        const u='https://www.googleapis.com/drive/v3/files?q='+q+'&fields=nextPageToken,files(id,name,mimeType)&spaces=drive&pageSize=200'+(pageToken?'&pageToken='+pageToken:'');
+        const r=await drvApi(u);
+        if(!r.ok){const t=await r.text();throw new Error('Liste '+r.status+': '+t.slice(0,200));}
+        const j=await r.json();
+        for(const f of (j.files||[])){
+          const child=relPath?relPath+'/'+f.name:f.name;
+          if(f.mimeType==='application/vnd.google-apps.folder'){_drvFolderCache[child]=f.id;await walk(f.id,child);}
+          else if(/\.tex$/i.test(f.name)){files.push({id:f.id,name:f.name,folder:relPath});}
+        }
+        pageToken=j.nextPageToken||'';
+      }while(pageToken);
+    }
+    await walk(rootId,'');
+    if(!files.length){drvLog('Aucun fichier .tex trouvé dans le dossier Drive.',false);btn.disabled=false;return;}
+    let added=0,updated=0;
+    for(const f of files){
+      drvLog('Récupération : '+(f.folder?f.folder+'/':'')+f.name+'…',false);
+      const dr=await drvApi('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media');
+      if(!dr.ok)continue;
+      const content=await dr.text();
+      const baseName=f.name.replace(/\.tex$/i,'');
+      const docs=getDocs();
+      let existing=docs.find(d=>d.drvId===f.id);
+      if(!existing)existing=docs.find(d=>(d.name||'').replace(/[\/\\]/g,'_')===baseName&&(d.folder||'')===(f.folder||''));
+      if(existing){
+        const idx=docs.findIndex(d=>d.id===existing.id);
+        docs[idx].content=content;docs[idx].folder=f.folder||'';docs[idx].drvId=f.id;
+        docs[idx].drvSyncedAt=Date.now();docs[idx].drvSyncedContent=content;docs[idx].updatedAt=Date.now();docs[idx].drvSyncState='ok';
+        saveDocs(docs);updated++;
+        if(currentId===existing.id){cm.setValue(content);cm.clearHistory();}
+      }else{
+        const id=genId();
+        docs.unshift({id,name:baseName.replace(/_/g,' '),folder:f.folder||'',content,createdAt:Date.now(),updatedAt:Date.now(),drvId:f.id,drvSyncedAt:Date.now(),drvSyncedContent:content,drvSyncState:'ok'});
+        if(f.folder){const fs=getFolders();if(!fs.includes(f.folder)){fs.push(f.folder);saveFolders(fs);}}
+        saveDocs(docs);added++;
+      }
+    }
+    drvLog('✓ '+added+' ajouté(s), '+updated+' mis à jour.',false);
+    renderDocs();
+  }catch(e){drvLog('Erreur : '+(e.message||e),true);}
+  finally{btn.disabled=false;}
+}
+
+// ---- Push manuel d'un seul doc + auto-push ----
+async function drvPushCurrent(docId,e){
+  if(e)e.stopPropagation();
+  if(!drvConnected()){openDrvModal();return;}
+  if(currentId===docId)autoSave();
+  await drvPushDoc(docId,{silent:false,interactive:true});
+}
+function scheduleDrivePush(docId){
+  const c=getDrvCfg();
+  if(!c.auto||!drvConnected())return;
+  clearTimeout(_drvPushTimer);
+  _drvPushTimer=setTimeout(()=>{drvPushDoc(docId,{silent:true});},3000);
+}
+function drvStateFor(doc){
+  if(!drvConnected())return 'off';
+  if(doc.drvSyncState==='spin')return 'spin';
+  if(doc.drvSyncState==='err')return 'err';
+  if(!doc.drvId)return 'dirty';
+  if(doc.drvSyncedContent!==undefined&&doc.drvSyncedContent!==doc.content)return 'dirty';
+  return 'ok';
+}
+function drvStateIcon(s){return {ok:'☁',dirty:'☁',spin:'↻',err:'!',off:''}[s]||'';}
+function drvStateTitle(s){return {ok:'Synchronisé avec Drive',dirty:'Modifications non poussées — clic pour pousser vers Drive',spin:'Synchronisation en cours…',err:'Erreur de synchronisation — clic pour réessayer',off:'Drive non connecté'}[s]||'';}
 </script>
 </body>
 </html>
