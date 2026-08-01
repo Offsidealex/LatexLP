@@ -1735,19 +1735,24 @@ function buildForm(files,mainPath,srvKey,iframeName){
     form.appendChild(inp);
   }
 
-  // Reorder files so the main one is FIRST — texlive.net uses the first
-  // filecontents[]/filename[] pair as the entry point.
+  // Reorder files so the main one is FIRST, and — crucial — texlive.net
+  // compile TOUJOURS le fichier nommé exactement 'document.tex'. On envoie
+  // donc le fichier principal sous ce nom (les autres gardent le leur).
   const ordered=files.slice();
+  let mainFile=null;
   if(mainPath){
     const idx=ordered.findIndex(f=>f.path===mainPath);
-    if(idx>0){const m=ordered.splice(idx,1)[0];ordered.unshift(m);}
+    if(idx>=0){mainFile=ordered[idx];if(idx>0){ordered.splice(idx,1);ordered.unshift(mainFile);}}
   }
+  if(!mainFile&&ordered.length)mainFile=ordered[0];
+  const hasDocTex=files.some(f=>f.path==='document.tex');
+  function outName(f){return (!hasDocTex&&f===mainFile)?'document.tex':f.path;}
 
   // For each project file: paired filecontents[] + filename[] entries.
   // Text files go through a <textarea> (UTF-8 safe).
   // Binary files go through <input type="file"> with a File set via DataTransfer (preserves bytes).
   for(const f of ordered){
-    const nameInp=document.createElement('input');nameInp.type='hidden';nameInp.name='filename[]';nameInp.value=f.path;
+    const nameInp=document.createElement('input');nameInp.type='hidden';nameInp.name='filename[]';nameInp.value=outName(f);
     if(f.kind==='binary'){
       const fileInp=document.createElement('input');
       fileInp.type='file';fileInp.name='filecontents[]';
