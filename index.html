@@ -503,6 +503,13 @@ body.light .pj-title{color:#1a1a2e}
 .pj-files-hdr,.pj-assets-hdr{font-size:10px;letter-spacing:1px;color:#5a5a70;font-weight:700;padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between}
 .pj-files-hdr button{background:none;border:none;color:#5a5a70;font-size:15px;cursor:pointer;line-height:1}
 .pj-files-hdr button:hover{color:#4dcc88}
+.pj-folder{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#8a8aa5;font-weight:600;padding:5px 8px 3px}
+body.light .pj-folder{color:#6a6a80}
+.pitem-asset{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7a7a90;padding:5px 9px;border-radius:6px}
+.pitem-asset:hover{background:#252a4d}
+body.light .pitem-asset:hover{background:#f0f2fb}
+.passet-ic{font-size:12px;flex-shrink:0}
+.passet-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* champs de la modale nouveau projet */
 .np-field{margin-top:12px}
@@ -1806,7 +1813,10 @@ function getCompileBundle(){
     const proj=getProject(cur.projectId);
     if(proj){
       const files=getProjectAllFiles(cur.projectId);
-      return {files,mainPath:proj.mainPath||cur.projectPath,isProject:true,projectName:proj.name};
+      // Si le fichier ouvert est autonome (\documentclass), on compile CELUI-LÀ.
+      let mainPath=proj.mainPath||cur.projectPath;
+      if(cur.projectPath&&/\\documentclass/.test(cur.content||cm.getValue()||''))mainPath=cur.projectPath;
+      return {files,mainPath,isProject:true,projectName:proj.name};
     }
   }
   return {files:[{path:'document.tex',kind:'text',content:cm.getValue()}],mainPath:'document.tex',isProject:false};
@@ -1856,6 +1866,55 @@ async function optimizeImagesForCompile(files){
   return out;
 }
 
+// texlive.net refuse les noms avec espaces/accents. On produit des noms sûrs,
+// on aplatit les images à la racine, et on réécrit les \includegraphics / \input.
+function texSafeSeg(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_');
+}
+function sanitizeBundleForTexlive(files,mainPath){
+  const texExt=/\.tex$/i;
+  const imgMap={}, used={};
+  const outAssets=[];
+  // 1) fichiers binaires / images -> nom sûr, aplatis à la racine
+  for(const f of files){
+    if(f.kind==='binary'){
+      const origBase=f.path.split('/').pop();
+      let safe=texSafeSeg(origBase);
+      const dot=safe.lastIndexOf('.');const stem=dot>0?safe.slice(0,dot):safe;const ext=dot>0?safe.slice(dot):'';
+      let cand=safe,i=1;
+      while(used[cand.toLowerCase()]){cand=stem+'_'+(i++)+ext;}
+      used[cand.toLowerCase()]=1;
+      imgMap[f.path]=cand;
+      imgMap[origBase]=cand;
+      imgMap[origBase.replace(/\.[^.]+$/,'')]=cand;
+      outAssets.push(Object.assign({},f,{path:cand}));
+    }
+  }
+  // 2) fichiers .tex -> chemin sûr (structure conservée)
+  const texMap={};
+  for(const f of files)if(f.kind!=='binary'&&texExt.test(f.path))texMap[f.path]=f.path.split('/').map(texSafeSeg).join('/');
+  function rewrite(content){
+    content=content.replace(/(\\includegraphics(?:\[[^\]]*\])?\s*\{)([^}]*)\}/g,(m,pre,p)=>{
+      const base=p.split('/').pop();
+      const key=imgMap[p]||imgMap[base]||imgMap[base.replace(/\.[^.]+$/,'')];
+      return pre+(key||texSafeSeg(base))+'}';
+    });
+    content=content.replace(/(\\(?:input|include)\s*\{)([^}]*)\}/g,(m,pre,p)=>{
+      const want=(/\.tex$/i.test(p)?p:p+'.tex').split('/').pop();
+      for(const [orig,s] of Object.entries(texMap))if(orig.split('/').pop()===want)return pre+s.replace(/\.tex$/i,'')+'}';
+      return m;
+    });
+    return content;
+  }
+  // 3) reconstruire, principal -> document.tex
+  const outTex=[];
+  for(const f of files)if(f.kind!=='binary'&&texExt.test(f.path)){
+    const isMain=(f.path===mainPath);
+    outTex.push({path:isMain?'document.tex':texMap[f.path],kind:'text',content:rewrite(f.content||'')});
+  }
+  return {files:outTex.concat(outAssets),mainPath:'document.tex'};
+}
+
 async function compile(){
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
   const btn=document.getElementById('btnc');
@@ -1898,6 +1957,8 @@ async function compile(){
   if(bundle.isProject){
     setStatus('spin','Préparation du projet "'+bundle.projectName+'"…');
     bundle.files=await optimizeImagesForCompile(bundle.files);
+    const clean=sanitizeBundleForTexlive(bundle.files,bundle.mainPath);
+    bundle.files=clean.files;bundle.mainPath=clean.mainPath;
     setStatus('spin','Compilation ('+bundle.files.length+' fichiers)…');
   }
   // Force texlive.net for projects (multi-file). Single docs can use either.
@@ -2968,34 +3029,47 @@ function renderProjectScoped(){
   if(!el)return;
   if(!proj){el.innerHTML='';return;}
   const c=projColor(proj);
-  const texDocs=getDocs().filter(d=>d.projectId===proj.id).sort((a,b)=>{
-    if(a.projectPath===proj.mainPath)return -1;
-    if(b.projectPath===proj.mainPath)return 1;
-    return (a.projectPath||'').localeCompare(b.projectPath||'');
-  });
-  let items='';
-  for(const d of texDocs){
-    const isMain=d.projectPath===proj.mainPath;
-    const st=drvStateFor(d);
-    const badge=(st==='off')?'':`<button class="dsync ${st}" title="${esc(drvStateTitle(st))}" onclick="drvPushCurrent('${d.id}',event)">${drvStateIcon(st)}</button>`;
-    const delBtn=isMain?'':`<button class="ddel" onclick="deleteProjectFile('${d.id}',event)" title="Supprimer ce fichier">✕</button>`;
-    items+=`<div class="ditem ${d.id===currentId?'dactive':''}" onclick="openDoc('${d.id}')">
-      ${badge}
-      <span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(d.projectPath||d.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>
-      ${delBtn}
-    </div>`;
+  const docs=getDocs().filter(d=>d.projectId===proj.id);
+  // Construire l'arbre à partir des chemins (projectPath)
+  const root={folders:{},files:[]};
+  function addPath(path,payload){
+    const parts=(path||'').split('/');let node=root;
+    for(let i=0;i<parts.length-1;i++){const seg=parts[i];node.folders[seg]=node.folders[seg]||{folders:{},files:[]};node=node.folders[seg];}
+    node.files.push(Object.assign({name:parts[parts.length-1]},payload));
   }
-  let assets='';
-  for(const [path,info] of Object.entries(proj.files||{})){
-    const ic=info.type==='binary'?'🖼':'📄';
-    assets+=`<div class="pitem-asset" title="${esc(path)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(path.split('/').pop())}</span></div>`;
+  for(const d of docs)addPath(d.projectPath||d.name,{kind:'tex',doc:d});
+  for(const [path,info] of Object.entries(proj.files||{}))addPath(path,{kind:'asset',info});
+  function renderNode(node,depth){
+    let h='';
+    for(const fn of Object.keys(node.folders).sort()){
+      h+=`<div class="pj-folder" style="padding-left:${8+depth*13}px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(fn)}</div>`;
+      h+=renderNode(node.folders[fn],depth+1);
+    }
+    const files=node.files.slice().sort((a,b)=>{
+      const am=(a.kind==='tex'&&a.doc.projectPath===proj.mainPath)?0:(a.kind==='tex'?1:2);
+      const bm=(b.kind==='tex'&&b.doc.projectPath===proj.mainPath)?0:(b.kind==='tex'?1:2);
+      return am-bm||a.name.localeCompare(b.name);
+    });
+    for(const f of files){
+      const pad=8+depth*13;
+      if(f.kind==='tex'){
+        const d=f.doc,isMain=d.projectPath===proj.mainPath;
+        const st=drvStateFor(d);
+        const badge=(st==='off')?'':`<button class="dsync ${st}" title="${esc(drvStateTitle(st))}" onclick="drvPushCurrent('${d.id}',event)">${drvStateIcon(st)}</button>`;
+        const del=isMain?'':`<button class="ddel" onclick="deleteProjectFile('${d.id}',event)" title="Supprimer ce fichier">✕</button>`;
+        h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${del}</div>`;
+      }else{
+        const ic=f.info.type==='binary'?'🖼':'📄';
+        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span></div>`;
+      }
+    }
+    return h;
   }
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
     <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button></div>
-    ${items}
-    ${assets?`<div class="pj-assets-hdr">RESSOURCES</div>${assets}`:''}`;
+    ${renderNode(root,0)}`;
 }
 
 // ---- Modale « Nouveau projet » ----
