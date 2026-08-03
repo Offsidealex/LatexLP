@@ -202,6 +202,7 @@ body.light .pal-check{color:#1a5a99}
 .pverr{position:absolute;inset:0;display:none;background:#262626;color:#ff8080;padding:24px;font-family:monospace;font-size:12.5px;line-height:1.6;overflow-y:auto;white-space:pre-wrap}
 .pverr.show{display:block}
 .pverr .pverr-title{color:#ff6060;font-weight:bold;margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:0.8px}
+.pverr-body{margin:8px 0 0;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#e0a0a0;max-height:100%;overflow:auto}
 
 .log{flex-shrink:0;padding:7px 14px;font-size:12px;font-family:monospace;color:#8090a0;border-top:1px solid #2a2a4a;background:#0a0a18;max-height:90px;overflow-y:auto;display:none;white-space:pre-wrap;line-height:1.5}
 .log.err{color:#ff6060}
@@ -1905,6 +1906,44 @@ function sanitizeBundleForTexlive(files,mainPath){
   return {files:out,mainPath:'document.tex'};
 }
 
+// Version FormData de la requête (pour l'envoi via fetch, qui permet de lire le log).
+function buildFormData(files,mainPath){
+  const fd=new FormData();
+  fd.append('engine','pdflatex');
+  fd.append('return','pdf');
+  const ordered=files.slice();
+  let mainFile=null;
+  if(mainPath){const i=ordered.findIndex(f=>f.path===mainPath);if(i>=0){mainFile=ordered[i];if(i>0){ordered.splice(i,1);ordered.unshift(mainFile);}}}
+  if(!mainFile&&ordered.length)mainFile=ordered[0];
+  const hasDocTex=files.some(f=>f.path==='document.tex');
+  const outName=f=>(!hasDocTex&&f===mainFile)?'document.tex':f.path;
+  for(const f of ordered){
+    fd.append('filename[]',outName(f));
+    if(f.kind==='binary'){
+      const blob=base64ToBlob(f.data,f.mime||mimeFor(f.path));
+      fd.append('filecontents[]',blob,outName(f));
+    }else{
+      fd.append('filecontents[]',f.content||'');
+    }
+  }
+  return fd;
+}
+// Extrait l'erreur lisible d'un log LaTeX (la ligne « ! … » + contexte + n° de ligne).
+function parseTexError(log){
+  const lines=(log||'').split(/\r?\n/);
+  let idx=lines.findIndex(l=>/^!/.test(l));
+  if(idx===-1)idx=lines.findIndex(l=>/LaTeX Error|Emergency stop|Undefined control sequence|Runaway argument|Fatal error|not found|Package .* Error/.test(l));
+  if(idx===-1)return {summary:'Erreur de compilation',detail:lines.filter(l=>l.trim()).slice(-20).join('\n')};
+  const errLine=lines[idx].replace(/^!\s*/,'').trim();
+  let lineNo=null;const ctx=[];
+  for(let i=idx;i<Math.min(lines.length,idx+14);i++){
+    ctx.push(lines[i]);
+    const m=lines[i].match(/^l\.(\d+)/);
+    if(m&&!lineNo)lineNo=m[1];
+  }
+  return {summary:errLine+(lineNo?('  —  vers la ligne '+lineNo):''),detail:ctx.join('\n'),lineNo};
+}
+
 async function compile(){
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
   const btn=document.getElementById('btnc');
@@ -1958,6 +1997,38 @@ async function compile(){
     ? buildForm(bundle.files,bundle.mainPath,_lastFormSrv,fr.name)
     : buildSingleFileForm(bundle.files[0].content,_lastFormSrv,fr.name);
 
+  // 1) Essai via fetch : permet de lire le log et d'afficher l'erreur en clair.
+  if(bundle.isProject||_lastFormSrv==='texlive'){
+    try{
+      const fd=buildFormData(bundle.files,bundle.mainPath);
+      const res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
+      clearTimeout(timeout);
+      const blob=await res.blob();
+      const head=await blob.slice(0,5).text().catch(()=>'');
+      const ct=res.headers.get('content-type')||'';
+      if(ct.includes('pdf')||head==='%PDF-'){
+        pdfBlob=blob;
+        if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+        fr.src=URL.createObjectURL(blob);
+        setStatus('ok','Compilation terminée — texlive.net');
+        document.getElementById('btnpdf').disabled=false;
+        document.getElementById('btnpdf2').disabled=false;
+        btn.disabled=false;
+      }else{
+        const log=await blob.text();
+        const err=parseTexError(log);
+        setStatus('err','Erreur de compilation');
+        showCompileError('⚠ '+err.summary,err.detail);
+        btn.disabled=false;
+      }
+      return;
+    }catch(e){
+      // fetch bloqué (CORS/réseau) → repli sur l'iframe classique
+      console.warn('Compilation via fetch impossible, repli iframe :',e&&e.message);
+    }
+  }
+
+  // 2) Repli : soumission classique dans l'iframe (mécanisme d'origine).
   document.body.appendChild(form);
   try{ form.submit(); }
   catch(e){
@@ -1983,7 +2054,7 @@ function compileWithFallback(){
 
 function showCompileError(title,body){
   const pv=document.getElementById('pverr');
-  pv.innerHTML='<div class="pverr-title">'+esc(title)+'</div>'+esc(body);
+  pv.innerHTML='<div class="pverr-title">'+esc(title)+'</div><pre class="pverr-body">'+esc(body)+'</pre>';
   pv.classList.add('show');
   document.getElementById('pdfframe').style.display='none';
   document.getElementById('pvph').style.display='none';
@@ -2605,7 +2676,10 @@ function dlTex(){
   a.href=URL.createObjectURL(new Blob([cm.getValue()],{type:'text/plain'}));
   a.download=name+'.tex';a.click();
 }
-function dlPdf(){ openPdfFull(); }
+function dlPdf(){
+  if(pdfBlob){const a=document.createElement('a');a.href=URL.createObjectURL(pdfBlob);a.download='document.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);return;}
+  openPdfFull();
+}
 function openPdfFull(){
   // Open the compiled PDF in a new tab by re-submitting the form.
   const bundle=getCompileBundle();
