@@ -1985,6 +1985,41 @@ function parseYtotechError(txt){
   return parseTexError(log);
 }
 
+// Ne garder que les fichiers réellement utilisés par le document compilé
+// (via \input/\include/\includegraphics, récursivement). Évite d'envoyer des
+// images corrompues d'autres chapitres qui feraient planter la soumission.
+function collectRefs(content){
+  const refs=[];
+  for(const m of (content||'').matchAll(/\\(?:input|include)\s*\{([^}]+)\}/g))refs.push(m[1].trim());
+  for(const m of (content||'').matchAll(/\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]+)\}/g))refs.push(m[1].trim());
+  return refs;
+}
+function computeNeededFiles(files,mainPath){
+  const byPath={},byBase={};
+  for(const f of files){
+    byPath[f.path]=f;
+    const b=f.path.split('/').pop();
+    if(!(b in byBase))byBase[b]=f;
+    const nb=b.replace(/\.[^.]+$/,'');
+    if(!(nb in byBase))byBase[nb]=f;
+  }
+  const main=files.find(f=>f.path===mainPath)||files[0];
+  if(!main)return files;
+  const needed=new Set([main.path]);
+  const queue=[main];
+  while(queue.length){
+    const f=queue.shift();
+    if(f.kind==='binary')continue;
+    for(const ref of collectRefs(f.content)){
+      const base=ref.split('/').pop();
+      const nb=base.replace(/\.[^.]+$/,'');
+      const t=byPath[ref]||byPath[ref+'.tex']||byBase[base]||byBase[nb]||byBase[base+'.tex'];
+      if(t&&!needed.has(t.path)){needed.add(t.path);if(t.kind!=='binary')queue.push(t);}
+    }
+  }
+  return files.filter(f=>needed.has(f.path));
+}
+
 async function compile(){
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
   const btn=document.getElementById('btnc');
@@ -2026,6 +2061,7 @@ async function compile(){
   const bundle=getCompileBundle();
   if(bundle.isProject){
     setStatus('spin','Préparation du projet "'+bundle.projectName+'"…');
+    bundle.files=computeNeededFiles(bundle.files,bundle.mainPath);
     bundle.files=await optimizeImagesForCompile(bundle.files);
     const clean=sanitizeBundleForTexlive(bundle.files,bundle.mainPath);
     bundle.files=clean.files;bundle.mainPath=clean.mainPath;
