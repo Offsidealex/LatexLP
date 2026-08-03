@@ -1990,6 +1990,15 @@ async function compile(){
     bundle.files=clean.files;bundle.mainPath=clean.mainPath;
     setStatus('spin','Compilation ('+bundle.files.length+' fichiers)…');
   }
+  // Comme Overleaf : compiler en nonstopmode pour passer outre les erreurs
+  // récupérables et produire le PDF quand c'est possible.
+  {
+    const mi=bundle.files.findIndex(f=>f.path===bundle.mainPath);
+    const k=mi>=0?mi:0;
+    if(bundle.files[k]&&bundle.files[k].kind!=='binary'&&!/^\s*\\nonstopmode/.test(bundle.files[k].content||'')){
+      bundle.files[k]=Object.assign({},bundle.files[k],{content:'\\nonstopmode\n'+(bundle.files[k].content||'')});
+    }
+  }
   // Force texlive.net for projects (multi-file). Single docs can use either.
   if(bundle.isProject&&_lastFormSrv!=='texlive'){_lastFormSrv='texlive';}
 
