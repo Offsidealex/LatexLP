@@ -1866,53 +1866,43 @@ async function optimizeImagesForCompile(files){
   return out;
 }
 
-// texlive.net refuse les noms avec espaces/accents. On produit des noms sûrs,
-// on aplatit les images à la racine, et on réécrit les \includegraphics / \input.
-function texSafeSeg(s){
-  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_');
-}
+// texlive.net refuse underscore, espaces, accents, débuts non-lettres et sous-dossiers
+// exotiques. On APLATIT tous les fichiers à la racine avec des noms sûrs (lettres,
+// chiffres, - et .), le principal devient document.tex, et on réécrit \includegraphics
+// et \input en conséquence. Non destructif : n'affecte que la compilation.
 function sanitizeBundleForTexlive(files,mainPath){
-  const texExt=/\.tex$/i;
-  const imgMap={}, used={};
-  const outAssets=[];
-  // 1) fichiers binaires / images -> nom sûr, aplatis à la racine
+  const used={'document.tex':1};
+  const safeBase=(name)=>{
+    let s=(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^A-Za-z0-9.-]+/g,'-').replace(/-+/g,'-').replace(/^[-.]+/,'');
+    if(!/^[A-Za-z]/.test(s))s='x'+s;
+    return s||'file';
+  };
+  const unique=(base)=>{
+    const dot=base.lastIndexOf('.');const stem=dot>0?base.slice(0,dot):base;const ext=dot>0?base.slice(dot):'';
+    let c=base,i=1;while(used[c.toLowerCase()])c=stem+'-'+(i++)+ext;used[c.toLowerCase()]=1;return c;
+  };
+  const nameMap={},byBase={};
   for(const f of files){
-    if(f.kind==='binary'){
-      const origBase=f.path.split('/').pop();
-      let safe=texSafeSeg(origBase);
-      const dot=safe.lastIndexOf('.');const stem=dot>0?safe.slice(0,dot):safe;const ext=dot>0?safe.slice(dot):'';
-      let cand=safe,i=1;
-      while(used[cand.toLowerCase()]){cand=stem+'_'+(i++)+ext;}
-      used[cand.toLowerCase()]=1;
-      imgMap[f.path]=cand;
-      imgMap[origBase]=cand;
-      imgMap[origBase.replace(/\.[^.]+$/,'')]=cand;
-      outAssets.push(Object.assign({},f,{path:cand}));
-    }
+    const origBase=f.path.split('/').pop();
+    const out=(f.path===mainPath)?'document.tex':unique(safeBase(origBase));
+    nameMap[f.path]=out;
+    const noext=origBase.replace(/\.[^.]+$/,'');
+    if(!(origBase in byBase))byBase[origBase]=out;
+    if(!(noext in byBase))byBase[noext]=out;
   }
-  // 2) fichiers .tex -> chemin sûr (structure conservée)
-  const texMap={};
-  for(const f of files)if(f.kind!=='binary'&&texExt.test(f.path))texMap[f.path]=f.path.split('/').map(texSafeSeg).join('/');
-  function rewrite(content){
-    content=content.replace(/(\\includegraphics(?:\[[^\]]*\])?\s*\{)([^}]*)\}/g,(m,pre,p)=>{
-      const base=p.split('/').pop();
-      const key=imgMap[p]||imgMap[base]||imgMap[base.replace(/\.[^.]+$/,'')];
-      return pre+(key||texSafeSeg(base))+'}';
-    });
-    content=content.replace(/(\\(?:input|include)\s*\{)([^}]*)\}/g,(m,pre,p)=>{
-      const want=(/\.tex$/i.test(p)?p:p+'.tex').split('/').pop();
-      for(const [orig,s] of Object.entries(texMap))if(orig.split('/').pop()===want)return pre+s.replace(/\.tex$/i,'')+'}';
-      return m;
-    });
+  const lookup=(p)=>{const b=p.split('/').pop();return byBase[b]||byBase[b.replace(/\.[^.]+$/,'')]||null;};
+  const rewrite=(content)=>{
+    content=content.replace(/(\\includegraphics(?:\[[^\]]*\])?\s*\{)([^}]*)\}/g,(m,pre,p)=>pre+(lookup(p)||safeBase(p.split('/').pop()))+'}');
+    content=content.replace(/(\\(?:input|include)\s*\{)([^}]*)\}/g,(m,pre,p)=>{const t=lookup(/\.tex$/i.test(p)?p:p+'.tex');return t?pre+t.replace(/\.tex$/i,'')+'}':m;});
     return content;
+  };
+  const out=[];
+  for(const f of files){
+    if(f.kind==='binary')out.push(Object.assign({},f,{path:nameMap[f.path]}));
+    else out.push({path:nameMap[f.path],kind:'text',content:rewrite(f.content||'')});
   }
-  // 3) reconstruire, principal -> document.tex
-  const outTex=[];
-  for(const f of files)if(f.kind!=='binary'&&texExt.test(f.path)){
-    const isMain=(f.path===mainPath);
-    outTex.push({path:isMain?'document.tex':texMap[f.path],kind:'text',content:rewrite(f.content||'')});
-  }
-  return {files:outTex.concat(outAssets),mainPath:'document.tex'};
+  return {files:out,mainPath:'document.tex'};
 }
 
 async function compile(){
