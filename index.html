@@ -236,6 +236,10 @@ body.light .pal-check{color:#1a5a99}
 .btn-drive.connected{background:#1a1a2e!important;color:#9aa0aa!important;border-color:#3a3a5a!important}
 .btn-drive.syncing{color:#cc8800!important;border-color:#664a1a!important}
 .btn-drive.err{color:#ff6060!important;border-color:#5a2a2a!important}
+#srvSel{background:#1a1a2e;color:#c0c0d0;border:1px solid #3a3a5a;border-radius:7px;padding:6px 8px;font-family:inherit;font-size:12.5px;cursor:pointer;outline:none;height:32px}
+#srvSel:hover{border-color:#4a4a6a}
+body.light #srvSel{background:#fff;color:#3a3a5a;border-color:#d0d0e0}
+body.home #srvSel{display:none!important}
 
 .dsync{font-size:10px;margin-right:4px;flex-shrink:0;width:11px;text-align:center}
 .dsync.ok{color:#4dcc88}
@@ -441,6 +445,10 @@ body.light ::-webkit-scrollbar-thumb{background:#c0c0d0}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       .pdf
     </button>
+    <select id="srvSel" onchange="setSrv(this.value)" title="Serveur de compilation">
+      <option value="texlive">texlive.net · rapide</option>
+      <option value="ytotech">ytotech · images</option>
+    </select>
     <button class="btn-compile" onclick="compile()" id="btnc">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Compiler <kbd>Ctrl+↵</kbd>
@@ -1253,6 +1261,7 @@ window.addEventListener('load',()=>{
   });
 
   // Démarrage : page d'accueil « Mes projets » (plus de doc auto-créé)
+  { const s=document.getElementById('srvSel'); if(s)s.value=getSrv(); }
   showHome();
 
   cm.on('change',()=>{
@@ -1944,6 +1953,38 @@ function parseTexError(log){
   return {summary:errLine+(lineNo?('  —  vers la ligne '+lineNo):''),detail:ctx.join('\n'),lineNo};
 }
 
+// ---- Choix du serveur de compilation ----
+function getSrv(){return localStorage.getItem('ltx_srv')||'texlive';}
+function setSrv(v){localStorage.setItem('ltx_srv',v);const s=document.getElementById('srvSel');if(s)s.value=v;}
+
+// Compilation via latex.ytotech.com (API JSON, images en base64 -> pas de corruption).
+async function compileViaYtotech(bundle){
+  const resources=[];
+  for(const f of bundle.files){
+    if(f.kind==='binary'){
+      resources.push({path:f.path,file:f.data}); // f.data = base64
+    }else if(f.path===bundle.mainPath){
+      resources.push({main:true,content:f.content||''});
+    }else{
+      resources.push({path:f.path,content:f.content||''});
+    }
+  }
+  const payload={compiler:'pdflatex',resources,options:{compiler:{halt_on_error:false}}};
+  return fetch('https://latex.ytotech.com/builds/sync',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
+  });
+}
+function parseYtotechError(txt){
+  let log=txt;
+  try{
+    const j=JSON.parse(txt);
+    log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||JSON.stringify(j);
+    if(typeof log!=='string')log=JSON.stringify(log);
+  }catch(e){}
+  log=log.replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\\t/g,'\t');
+  return parseTexError(log);
+}
+
 async function compile(){
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
   const btn=document.getElementById('btnc');
@@ -2008,31 +2049,47 @@ async function compile(){
 
   // 1) Essai via fetch : permet de lire le log et d'afficher l'erreur en clair.
   if(bundle.isProject||_lastFormSrv==='texlive'){
+    const srv=getSrv();
     try{
-      const fd=buildFormData(bundle.files,bundle.mainPath);
-      const res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
+      let res, srvLabel;
+      if(srv==='ytotech'){
+        srvLabel='ytotech';
+        res=await compileViaYtotech(bundle);
+      }else{
+        srvLabel='texlive.net';
+        const fd=buildFormData(bundle.files,bundle.mainPath);
+        res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
+      }
       clearTimeout(timeout);
       const blob=await res.blob();
       const head=await blob.slice(0,5).text().catch(()=>'');
       const ct=res.headers.get('content-type')||'';
-      if(ct.includes('pdf')||head==='%PDF-'){
+      if((res.ok&&ct.includes('pdf'))||head==='%PDF-'){
         pdfBlob=blob;
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
         fr.src=URL.createObjectURL(blob);
-        setStatus('ok','Compilation terminée — texlive.net');
+        setStatus('ok','Compilation terminée — '+srvLabel);
         document.getElementById('btnpdf').disabled=false;
         document.getElementById('btnpdf2').disabled=false;
         btn.disabled=false;
       }else{
         const log=await blob.text();
-        const err=parseTexError(log);
+        const err=(srv==='ytotech')?parseYtotechError(log):parseTexError(log);
         setStatus('err','Erreur de compilation');
         showCompileError('⚠ '+err.summary,err.detail);
         btn.disabled=false;
       }
       return;
     }catch(e){
-      // fetch bloqué (CORS/réseau) → repli sur l'iframe classique
+      // fetch bloqué (CORS/réseau)
+      if(srv==='ytotech'){
+        clearTimeout(timeout);
+        setStatus('err','Serveur injoignable');
+        showCompileError('⚠ Serveur ytotech injoignable',String((e&&e.message)||e)+'\n\nRéessaie, ou repasse sur texlive.net dans le sélecteur.');
+        btn.disabled=false;
+        return;
+      }
+      // texlive → repli sur l'iframe classique
       console.warn('Compilation via fetch impossible, repli iframe :',e&&e.message);
     }
   }
