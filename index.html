@@ -1,21 +1,10 @@
 <!DOCTYPE html>
 <html lang="fr">
-<style>
-.CodeMirror-dialog{background:#16213e;border-bottom:1px solid #2a2a4a;color:#e0e0e0;font-family:inherit;font-size:13px;padding:6px 10px}
-.CodeMirror-dialog input{background:#0f0f1e;border:1px solid #3a3a5a;color:#e0e0e0;font-family:monospace;padding:3px 6px;border-radius:4px;outline:none}
-body.light .CodeMirror-dialog{background:#fff;border-bottom-color:#d8d8e4;color:#1a1a2e}
-body.light .CodeMirror-dialog input{background:#fff;border-color:#d0d0e0;color:#1a1a2e}
-.cm-searching{background:#cc880055!important}
-.jump2line{background:#ffaa4433!important}
-</style>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LaTeX Studio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
@@ -440,10 +429,18 @@ body.light .cg-logo{color:#1a1a2e}
 .cg-off{margin-top:18px;font-size:12.5px;color:#6a7090;background:none;border:none;cursor:pointer;text-decoration:underline;font-family:inherit}
 .cg-off:hover{color:#9aa0c0}
 </style>
+
+<style>
+.CodeMirror-dialog{background:#16213e;border-bottom:1px solid #2a2a4a;color:#e0e0e0;font-family:inherit;font-size:13px;padding:6px 10px}
+.CodeMirror-dialog input{background:#0f0f1e;border:1px solid #3a3a5a;color:#e0e0e0;font-family:monospace;padding:3px 6px;border-radius:4px;outline:none}
+body.light .CodeMirror-dialog{background:#fff;border-bottom-color:#d8d8e4;color:#1a1a2e}
+body.light .CodeMirror-dialog input{background:#fff;border-color:#d0d0e0;color:#1a1a2e}
+.cm-searching{background:#cc880055!important}
+.jump2line{background:#ffaa4433!important}
+</style>
 </head>
 <body class="home">
-</head>
-   <div id="cloudGate" class="hidden">
+  <div id="cloudGate" class="hidden">
   <div class="cg-card">
     <div class="cg-logo">La<b>TeX</b> Studio</div>
     <div class="cg-sub">Connecte-toi avec ton compte Google pour retrouver tous tes projets, sur n'importe quel ordinateur.</div>
@@ -459,7 +456,6 @@ body.light .cg-logo{color:#1a1a2e}
 if(localStorage.getItem('ltx_cloud_offline')!=='1')
   document.getElementById('cloudGate').classList.remove('hidden');
 </script>
-<body class="home">
 
 <div class="hdr">
   <span class="logo">La<b>TeX</b> Studio</span>
@@ -849,6 +845,9 @@ body.light .np-field input,body.light .np-field select{background:#fff;border-co
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
 <script>
 const T={
 blank:`\\documentclass[11pt,a4paper]{article}
@@ -3389,6 +3388,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <script>
 // ============ Connexion Google = source unique (Drive) ============
+// Tout l'état est stocké dans UN fichier JSON sur ton Drive.
 const STATE_FILENAME='latex-studio-state.json';
 let _stateFileId=null,_cloudPushTimer=null;
 
@@ -3410,7 +3410,7 @@ async function cloudPullState(){
   _stateFileId=f.id;
   const r=await drvApi('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media');
   if(!r.ok)return null;
-  try{return await r.json();}catch(e){return null;}
+  try{return await r.json();}catch{return null;}
 }
 async function cloudPushState(){
   if(!drvConnected())return false;
@@ -3434,7 +3434,7 @@ async function cloudPushState(){
     'Content-Type: application/json; charset=UTF-8\r\n\r\n'+json+'\r\n'+
     '--'+boundary+'--';
   const r=await drvApi(url,{method,headers:{'Content-Type':'multipart/related; boundary='+boundary},body});
-  if(r.ok){const j=await r.json();_stateFileId=j.id;try{drvSetBadge('ok','Drive');}catch(e){}}
+  if(r.ok){const j=await r.json();_stateFileId=j.id;try{drvSetBadge('ok','Drive');}catch{}}
   return r.ok;
 }
 async function cloudLoadAndMerge(){
@@ -3449,58 +3449,62 @@ async function cloudLoadAndMerge(){
 function scheduleCloudPush(){
   if(localStorage.getItem('ltx_cloud_enabled')!=='1'||!drvConnected())return;
   clearTimeout(_cloudPushTimer);
-  _cloudPushTimer=setTimeout(function(){cloudPushState().catch(function(e){console.warn('cloud push',e);});},1500);
+  _cloudPushTimer=setTimeout(()=>{cloudPushState().catch(e=>console.warn('cloud push',e));},1500);
 }
 
-var _saveDocs0=saveDocs,_saveProjects0=saveProjects,_saveFolders0=saveFolders;
+// On enveloppe les sauvegardes pour pousser vers Drive à chaque changement.
+const _saveDocs0=saveDocs,_saveProjects0=saveProjects,_saveFolders0=saveFolders;
 saveDocs=function(d){_saveDocs0(d);scheduleCloudPush();};
 saveProjects=function(p){_saveProjects0(p);scheduleCloudPush();};
 saveFolders=function(f){_saveFolders0(f);scheduleCloudPush();};
 
+// ---- Écran de connexion ----
 function cloudHideGate(){document.getElementById('cloudGate').classList.add('hidden');}
 function cloudShowGate(){document.getElementById('cloudGate').classList.remove('hidden');}
 function cloudSkip(){localStorage.setItem('ltx_cloud_offline','1');cloudHideGate();showHome();}
 async function cloudLogin(){
   const btn=document.getElementById('cgBtn'),st=document.getElementById('cgStatus');
-  btn.disabled=true;st.className='cg-status';st.textContent='Ouverture de la fenetre Google...';
+  btn.disabled=true;st.className='cg-status';st.textContent='Ouverture de la fenêtre Google…';
   try{
     await drvRequestToken();
-    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch(e){}
-    st.textContent='Recuperation de tes projets...';
+    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
+    st.textContent='Récupération de tes projets…';
     await cloudLoadAndMerge();
-    await cloudPushState();
+    await cloudPushState();            // 1re connexion : envoie l'état déjà présent
     localStorage.setItem('ltx_cloud_enabled','1');
     localStorage.removeItem('ltx_cloud_offline');
-    try{updateDrvStatus();}catch(e){}
+    try{updateDrvStatus();}catch{}
     cloudHideGate();showHome();renderDocs();
   }catch(e){
     st.className='cg-status err';st.textContent='Connexion impossible : '+(e.message||e);
     btn.disabled=false;
   }
 }
+// ---- Démarrage : reconnexion silencieuse si déjà connecté ----
 async function cloudBoot(){
   if(localStorage.getItem('ltx_cloud_offline')==='1')return;
   if(!(window.google&&google.accounts&&google.accounts.oauth2))return setTimeout(cloudBoot,300);
   if(localStorage.getItem('ltx_cloud_enabled')!=='1'){cloudShowGate();return;}
   cloudShowGate();
-  const st=document.getElementById('cgStatus');st.className='cg-status';st.textContent='Reconnexion...';
+  const st=document.getElementById('cgStatus');st.className='cg-status';st.textContent='Reconnexion…';
   try{
     drvInitClient();
-    await new Promise(function(resolve,reject){_drvResolve=resolve;_drvReject=reject;_drvTokenClient.requestAccessToken({prompt:''});});
-    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch(e){}
-    st.textContent='Recuperation de tes projets...';
+    await new Promise((resolve,reject)=>{_drvResolve=resolve;_drvReject=reject;_drvTokenClient.requestAccessToken({prompt:''});});
+    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
+    st.textContent='Récupération de tes projets…';
     await cloudLoadAndMerge();scheduleCloudPush();
-    try{updateDrvStatus();}catch(e){}
+    try{updateDrvStatus();}catch{}
     cloudHideGate();showHome();renderDocs();
   }catch(e){
     document.getElementById('cgStatus').textContent='';
     document.getElementById('cgBtn').disabled=false;
   }
 }
-window.addEventListener('load',function(){setTimeout(cloudBoot,150);});
+window.addEventListener('load',()=>setTimeout(cloudBoot,150));
 </script>
+
 <script>
-// ===== Ctrl+F dans l'éditeur + saut à la ligne d'erreur =====
+// ===== Ctrl+F dans l'editeur + saut a la ligne d'erreur =====
 window.addEventListener('load',function(){
   var tries=0;
   (function bind(){
@@ -3512,8 +3516,6 @@ window.addEventListener('load',function(){
     }));
   })();
 });
-
-// Place le curseur sur une ligne précise et la met en évidence brièvement.
 function jumpToLine(n){
   if(!window.cm||!n)return;
   var line=Math.max(0,parseInt(n,10)-1);
@@ -3523,18 +3525,15 @@ function jumpToLine(n){
   var h=cm.addLineClass(line,'background','jump2line');
   setTimeout(function(){cm.removeLineClass(h,'background','jump2line');},2500);
 }
-
-// On enrichit l'affichage d'erreur : si un numéro de ligne est détecté,
-// on ajoute un bouton cliquable "aller à la ligne N".
 var _showCompileError0=window.showCompileError;
 window.showCompileError=function(title,body){
   _showCompileError0(title,body);
   try{
-    var m=(title+' '+body).match(/l(?:igne|\.)\s*(\d+)/i)||body.match(/on input line (\d+)/i);
+    var m=(title+' '+body).match(/l(?:igne|\.)\s*(\d+)/i)||(body||'').match(/on input line (\d+)/i);
     if(m&&m[1]){
       var pv=document.getElementById('pverr');
       var btn=document.createElement('button');
-      btn.textContent='➜ Aller à la ligne '+m[1];
+      btn.textContent='\u279c Aller a la ligne '+m[1];
       btn.style.cssText='margin-top:14px;padding:7px 14px;background:#0d3b66;color:#7ec4ff;border:1px solid #1a5a99;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px';
       btn.onclick=function(){jumpToLine(m[1]);};
       pv.appendChild(btn);
