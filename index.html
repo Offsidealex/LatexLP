@@ -3375,5 +3375,122 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(bg)bg.addEventListener('click',e=>{if(e.target===bg)closeNewProject();});
 });
 </script>
+
+<script>
+// ============ Connexion Google = source unique (Drive) ============
+// Tout l'état est stocké dans UN fichier JSON sur ton Drive.
+const STATE_FILENAME='latex-studio-state.json';
+let _stateFileId=null,_cloudPushTimer=null;
+
+function mergeById(local,cloud){
+  const m={};
+  for(const x of local||[])m[x.id]=x;
+  for(const x of cloud||[]){const ex=m[x.id];if(!ex||(x.updatedAt||0)>=(ex.updatedAt||0))m[x.id]=x;}
+  return Object.values(m);
+}
+async function cloudFindStateFile(){
+  const q=encodeURIComponent("name='"+STATE_FILENAME+"' and trashed=false");
+  const r=await drvApi('https://www.googleapis.com/drive/v3/files?q='+q+'&spaces=drive&fields=files(id,modifiedTime)&orderBy=modifiedTime desc');
+  if(!r.ok)return null;
+  const j=await r.json();return (j.files&&j.files[0])||null;
+}
+async function cloudPullState(){
+  const f=await cloudFindStateFile();
+  if(!f){_stateFileId=null;return null;}
+  _stateFileId=f.id;
+  const r=await drvApi('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media');
+  if(!r.ok)return null;
+  try{return await r.json();}catch{return null;}
+}
+async function cloudPushState(){
+  if(!drvConnected())return false;
+  const state={_app:'LaTeX Studio',_version:1,_savedAt:new Date().toISOString(),
+    projects:getProjects(),docs:getDocs(),folders:getFolders(),collapsed:getCollapsed()};
+  const json=JSON.stringify(state);
+  if(!_stateFileId){const ex=await cloudFindStateFile();if(ex)_stateFileId=ex.id;}
+  const boundary='ltxstate'+Math.random().toString(36).slice(2);
+  let meta,url,method;
+  if(_stateFileId){
+    meta={name:STATE_FILENAME};
+    url='https://www.googleapis.com/upload/drive/v3/files/'+_stateFileId+'?uploadType=multipart&fields=id';method='PATCH';
+  }else{
+    const rootId=await drvEnsureRoot();
+    meta={name:STATE_FILENAME,parents:[rootId]};
+    url='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id';method='POST';
+  }
+  const body='--'+boundary+'\r\n'+
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n'+
+    '--'+boundary+'\r\n'+
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n'+json+'\r\n'+
+    '--'+boundary+'--';
+  const r=await drvApi(url,{method,headers:{'Content-Type':'multipart/related; boundary='+boundary},body});
+  if(r.ok){const j=await r.json();_stateFileId=j.id;try{drvSetBadge('ok','Drive');}catch{}}
+  return r.ok;
+}
+async function cloudLoadAndMerge(){
+  const cloud=await cloudPullState();
+  if(!cloud)return false;
+  _saveProjects0(mergeById(getProjects(),cloud.projects));
+  _saveDocs0(mergeById(getDocs(),cloud.docs));
+  _saveFolders0(Array.from(new Set([...(getFolders()||[]),...(cloud.folders||[])])));
+  if(cloud.collapsed)setCollapsed(Object.assign(getCollapsed(),cloud.collapsed));
+  return true;
+}
+function scheduleCloudPush(){
+  if(localStorage.getItem('ltx_cloud_enabled')!=='1'||!drvConnected())return;
+  clearTimeout(_cloudPushTimer);
+  _cloudPushTimer=setTimeout(()=>{cloudPushState().catch(e=>console.warn('cloud push',e));},1500);
+}
+
+// On enveloppe les sauvegardes pour pousser vers Drive à chaque changement.
+const _saveDocs0=saveDocs,_saveProjects0=saveProjects,_saveFolders0=saveFolders;
+saveDocs=function(d){_saveDocs0(d);scheduleCloudPush();};
+saveProjects=function(p){_saveProjects0(p);scheduleCloudPush();};
+saveFolders=function(f){_saveFolders0(f);scheduleCloudPush();};
+
+// ---- Écran de connexion ----
+function cloudHideGate(){document.getElementById('cloudGate').classList.add('hidden');}
+function cloudShowGate(){document.getElementById('cloudGate').classList.remove('hidden');}
+function cloudSkip(){localStorage.setItem('ltx_cloud_offline','1');cloudHideGate();showHome();}
+async function cloudLogin(){
+  const btn=document.getElementById('cgBtn'),st=document.getElementById('cgStatus');
+  btn.disabled=true;st.className='cg-status';st.textContent='Ouverture de la fenêtre Google…';
+  try{
+    await drvRequestToken();
+    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
+    st.textContent='Récupération de tes projets…';
+    await cloudLoadAndMerge();
+    await cloudPushState();            // 1re connexion : envoie l'état déjà présent
+    localStorage.setItem('ltx_cloud_enabled','1');
+    localStorage.removeItem('ltx_cloud_offline');
+    try{updateDrvStatus();}catch{}
+    cloudHideGate();showHome();renderDocs();
+  }catch(e){
+    st.className='cg-status err';st.textContent='Connexion impossible : '+(e.message||e);
+    btn.disabled=false;
+  }
+}
+// ---- Démarrage : reconnexion silencieuse si déjà connecté ----
+async function cloudBoot(){
+  if(localStorage.getItem('ltx_cloud_offline')==='1')return;
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return setTimeout(cloudBoot,300);
+  if(localStorage.getItem('ltx_cloud_enabled')!=='1'){cloudShowGate();return;}
+  cloudShowGate();
+  const st=document.getElementById('cgStatus');st.className='cg-status';st.textContent='Reconnexion…';
+  try{
+    drvInitClient();
+    await new Promise((resolve,reject)=>{_drvResolve=resolve;_drvReject=reject;_drvTokenClient.requestAccessToken({prompt:''});});
+    try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
+    st.textContent='Récupération de tes projets…';
+    await cloudLoadAndMerge();scheduleCloudPush();
+    try{updateDrvStatus();}catch{}
+    cloudHideGate();showHome();renderDocs();
+  }catch(e){
+    document.getElementById('cgStatus').textContent='';
+    document.getElementById('cgBtn').disabled=false;
+  }
+}
+window.addEventListener('load',()=>setTimeout(cloudBoot,150));
+</script>
 </body>
 </html>
