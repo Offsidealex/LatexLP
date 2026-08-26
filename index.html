@@ -1,10 +1,21 @@
 <!DOCTYPE html>
 <html lang="fr">
+<style>
+.CodeMirror-dialog{background:#16213e;border-bottom:1px solid #2a2a4a;color:#e0e0e0;font-family:inherit;font-size:13px;padding:6px 10px}
+.CodeMirror-dialog input{background:#0f0f1e;border:1px solid #3a3a5a;color:#e0e0e0;font-family:monospace;padding:3px 6px;border-radius:4px;outline:none}
+body.light .CodeMirror-dialog{background:#fff;border-bottom-color:#d8d8e4;color:#1a1a2e}
+body.light .CodeMirror-dialog input{background:#fff;border-color:#d0d0e0;color:#1a1a2e}
+.cm-searching{background:#cc880055!important}
+.jump2line{background:#ffaa4433!important}
+</style>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LaTeX Studio</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async></script>
 <style>
@@ -3487,6 +3498,49 @@ async function cloudBoot(){
   }
 }
 window.addEventListener('load',function(){setTimeout(cloudBoot,150);});
+</script>
+<script>
+// ===== Ctrl+F dans l'éditeur + saut à la ligne d'erreur =====
+window.addEventListener('load',function(){
+  var tries=0;
+  (function bind(){
+    if(!window.cm){if(tries++<40)return setTimeout(bind,150);return;}
+    cm.setOption('extraKeys',Object.assign(cm.getOption('extraKeys')||{},{
+      'Ctrl-F':'findPersistent','Cmd-F':'findPersistent',
+      'Ctrl-G':'findNext','Cmd-G':'findNext',
+      'Shift-Ctrl-G':'findPrev','Shift-Cmd-G':'findPrev'
+    }));
+  })();
+});
+
+// Place le curseur sur une ligne précise et la met en évidence brièvement.
+function jumpToLine(n){
+  if(!window.cm||!n)return;
+  var line=Math.max(0,parseInt(n,10)-1);
+  cm.focus();
+  cm.setCursor({line:line,ch:0});
+  cm.scrollIntoView({line:line,ch:0},120);
+  var h=cm.addLineClass(line,'background','jump2line');
+  setTimeout(function(){cm.removeLineClass(h,'background','jump2line');},2500);
+}
+
+// On enrichit l'affichage d'erreur : si un numéro de ligne est détecté,
+// on ajoute un bouton cliquable "aller à la ligne N".
+var _showCompileError0=window.showCompileError;
+window.showCompileError=function(title,body){
+  _showCompileError0(title,body);
+  try{
+    var m=(title+' '+body).match(/l(?:igne|\.)\s*(\d+)/i)||body.match(/on input line (\d+)/i);
+    if(m&&m[1]){
+      var pv=document.getElementById('pverr');
+      var btn=document.createElement('button');
+      btn.textContent='➜ Aller à la ligne '+m[1];
+      btn.style.cssText='margin-top:14px;padding:7px 14px;background:#0d3b66;color:#7ec4ff;border:1px solid #1a5a99;border-radius:6px;cursor:pointer;font-family:inherit;font-size:13px';
+      btn.onclick=function(){jumpToLine(m[1]);};
+      pv.appendChild(btn);
+    }
+  }catch(e){}
+};
 </script>
 </body>
 </html>
