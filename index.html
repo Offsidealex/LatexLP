@@ -2292,8 +2292,10 @@ async function compile(){
       }else{
         const log=await blob.text();
         setStatus('err','Erreur de compilation');
+        // On coupe l'ecouteur iframe et on masque l'iframe : le panneau prend la main.
+        if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+        fr.style.display='none';
         if(srv==='ytotech'){
-          // ytotech renvoie du JSON : on extrait le vrai log texte puis on parse.
           let raw=log; try{const j=JSON.parse(log);raw=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||log;}catch(e){}
           showCompilePanel(String(raw));
         }else{
@@ -2311,8 +2313,38 @@ async function compile(){
         btn.disabled=false;
         return;
       }
-      // texlive → repli sur l'iframe classique
-      console.warn('Compilation via fetch impossible, repli iframe :',e&&e.message);
+      // texlive → le fetch a echoue (CORS/reseau). On retente une fois en lisant le texte,
+      // pour pouvoir afficher le panneau d'erreurs au lieu du log brut dans l'iframe.
+      console.warn('Compilation via fetch impossible, nouvelle tentative :',e&&e.message);
+      try{
+        const fd2=buildFormData(bundle.files,bundle.mainPath);
+        const res2=await fetch(SERVERS.texlive.url,{method:'POST',body:fd2});
+        clearTimeout(timeout);
+        const blob2=await res2.blob();
+        const head2=await blob2.slice(0,5).text().catch(()=>'');
+        const ct2=res2.headers.get('content-type')||'';
+        if((res2.ok&&ct2.includes('pdf'))||head2==='%PDF-'){
+          pdfBlob=blob2;
+          if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+          fr.style.display='block';
+          fr.src=URL.createObjectURL(blob2);
+          setStatus('ok','Compilation terminée — texlive.net');
+          document.getElementById('btnpdf').disabled=false;
+          document.getElementById('btnpdf2').disabled=false;
+          btn.disabled=false;
+          return;
+        }else{
+          const log2=await blob2.text();
+          if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+          fr.style.display='none';
+          setStatus('err','Erreur de compilation');
+          showCompilePanel(log2);
+          btn.disabled=false;
+          return;
+        }
+      }catch(e2){
+        console.warn('2e tentative fetch echouee, repli iframe brut :',e2&&e2.message);
+      }
     }
   }
 
