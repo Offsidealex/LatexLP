@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.25</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.28</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -546,8 +546,8 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
       .pdf
     </button>
     <select id="srvSel" onchange="setSrv(this.value)" title="Serveur de compilation">
+      <option value="ytotech">ytotech · images (recommandé)</option>
       <option value="texlive">texlive.net · rapide</option>
-      <option value="ytotech">ytotech · images</option>
     </select>
     <button class="btn-compile" onclick="compile()" id="btnc">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1111,7 +1111,37 @@ function deleteProject(pid){
 
 // Binary <-> base64 helpers
 function blobToBase64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(blob);});}
-function base64ToBlob(b64,mime){const bin=atob(b64);const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);return new Blob([buf],{type:mime||'application/octet-stream'});}
+// Nettoie une chaine base64 (retire espaces, retours ligne, prefixe data:).
+function cleanB64(b64){
+  if(!b64)return '';
+  var s=String(b64).trim();
+  var c=s.indexOf('base64,'); if(c!==-1)s=s.slice(c+7);
+  return s.replace(/[^A-Za-z0-9+/=]/g,''); // retire tout caractere non-base64
+}
+// Re-encode une image via canvas pour PRODUIRE un PNG/JPEG propre,
+// eliminant toute corruption "ASCII" heritee. Retourne une Promise de base64 propre.
+function reencodeImageB64(b64,mime){
+  return new Promise(function(resolve){
+    var img=new Image();
+    var done=false;
+    var to=setTimeout(function(){if(!done){done=true;resolve(null);}},5000);
+    img.onload=function(){
+      if(done)return; done=true; clearTimeout(to);
+      try{
+        var cv=document.createElement('canvas');
+        cv.width=img.naturalWidth; cv.height=img.naturalHeight;
+        var ctx=cv.getContext('2d');
+        ctx.drawImage(img,0,0);
+        var out=(mime&&mime.includes('jpeg'))?cv.toDataURL('image/jpeg',0.95):cv.toDataURL('image/png');
+        resolve(out.split(',')[1]||null);
+      }catch(e){resolve(null);}
+    };
+    img.onerror=function(){if(done)return;done=true;clearTimeout(to);resolve(null);};
+    img.src='data:'+(mime||'image/png')+';base64,'+cleanB64(b64);
+  });
+}
+
+function base64ToBlob(b64,mime){const bin=atob(cleanB64(b64));const buf=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);return new Blob([buf],{type:mime||'application/octet-stream'});}
 
 const BINARY_EXT=new Set(['png','jpg','jpeg','gif','bmp','webp','pdf','eps','svg','ico','tif','tiff','zip','tar','gz','ttf','otf','woff','woff2','mp3','mp4','wav','m4a']);
 const MIME_BY_EXT={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',bmp:'image/bmp',webp:'image/webp',pdf:'application/pdf',eps:'application/postscript',svg:'image/svg+xml',ico:'image/x-icon',tif:'image/tiff',tiff:'image/tiff'};
@@ -1984,18 +2014,59 @@ function getCompileBundle(){
 }
 
 // Verifie qu'une image base64 est decodable (detecte les PNG corrompus AVANT compilation).
+// Decode base64 -> Uint8Array
+function b64ToBytes(b64){
+  try{
+    const bin=atob(b64||'');
+    const len=bin.length, out=new Uint8Array(len);
+    for(let i=0;i<len;i++)out[i]=bin.charCodeAt(i);
+    return out;
+  }catch(e){return null;}
+}
+// Verifie la STRUCTURE d'un PNG comme le ferait libpng (signature + chunks + IEND).
+// Detecte les corruptions "PNG file corrupted by ASCII conversion" que le
+// navigateur accepte mais que pdflatex refuse.
+function isValidPngBytes(b){
+  if(!b||b.length<12)return false;
+  // Signature PNG : 89 50 4E 47 0D 0A 1A 0A
+  const sig=[0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A];
+  for(let i=0;i<8;i++)if(b[i]!==sig[i])return false;
+  // Le 1er chunk doit etre IHDR
+  if(!(b[12]===0x49&&b[13]===0x48&&b[14]===0x44&&b[15]===0x52))return false;
+  // Parcours des chunks : [len(4)][type(4)][data][crc(4)]
+  let pos=8, sawIEND=false, guard=0;
+  while(pos+8<=b.length && guard++<100000){
+    const len=(b[pos]<<24>>>0)+(b[pos+1]<<16)+(b[pos+2]<<8)+b[pos+3];
+    const t=String.fromCharCode(b[pos+4],b[pos+5],b[pos+6],b[pos+7]);
+    // type invalide (non alphabetique) => corrompu
+    if(!/^[a-zA-Z]{4}$/.test(t))return false;
+    pos+=8+len+4; // avance jusqu'au chunk suivant (data + crc)
+    if(t==='IEND'){sawIEND=true;break;}
+    if(pos>b.length)return false; // longueur incoherente => corrompu
+  }
+  return sawIEND;
+}
+function isValidJpegBytes(b){
+  if(!b||b.length<4)return false;
+  // JPEG : FF D8 ... FF D9
+  if(b[0]!==0xFF||b[1]!==0xD8)return false;
+  if(b[b.length-2]!==0xFF||b[b.length-1]!==0xD9)return false;
+  return true;
+}
 function validateImageB64(b64,mime){
   return new Promise(function(resolve){
-    try{
-      // Verif rapide de la signature PNG (89 50 4E 47) sur les premiers octets.
-      if((mime||'').includes('png')||true){
-        const bin=atob((b64||'').slice(0,16));
-        // si ca ne commence pas par une signature d'image connue, on laissera le decodage trancher
-      }
-    }catch(e){resolve(false);return;}
-    const img=new Image();
-    let done=false;
-    const to=setTimeout(function(){if(!done){done=true;resolve(true);}},4000); // timeout: on n'ose pas bloquer
+    const bytes=b64ToBytes(b64);
+    if(!bytes){resolve(false);return;}
+    const m=(mime||'').toLowerCase();
+    // Verification structurelle stricte selon le type.
+    if(m.includes('png')){resolve(isValidPngBytes(bytes));return;}
+    if(m.includes('jpeg')||m.includes('jpg')){resolve(isValidJpegBytes(bytes));return;}
+    // Deviner par la signature si le mime est absent.
+    if(bytes[0]===0x89&&bytes[1]===0x50){resolve(isValidPngBytes(bytes));return;}
+    if(bytes[0]===0xFF&&bytes[1]===0xD8){resolve(isValidJpegBytes(bytes));return;}
+    // Autres formats (gif, webp, pdf) : on tente le decodage navigateur.
+    const img=new Image();let done=false;
+    const to=setTimeout(function(){if(!done){done=true;resolve(true);}},3000);
     img.onload=function(){if(done)return;done=true;clearTimeout(to);resolve((img.naturalWidth||0)>0);};
     img.onerror=function(){if(done)return;done=true;clearTimeout(to);resolve(false);};
     img.src='data:'+(mime||'image/png')+';base64,'+b64;
@@ -2044,12 +2115,20 @@ async function optimizeImagesForCompile(files){
       const ext=(f.path.split('.').pop()||'').toLowerCase();
       if(['jpg','jpeg','png','webp'].includes(ext)){
         const bytes=Math.floor((f.data||'').length*3/4);
+        // Grosses images : on reduit (et ca reencode proprement au passage).
         if(bytes>THRESH){
           try{
             const nd=await downscaleImage(f.data,f.mime||mimeFor(f.path),ext,MAXDIM,Q);
             if(nd&&nd.length<(f.data||'').length){out.push(Object.assign({},f,{data:nd,mime:ext==='png'?'image/png':'image/jpeg'}));continue;}
           }catch(e){/* garde l'original si échec */}
         }
+        // TOUTES les images (meme petites) : on REENCODE via canvas pour eliminer
+        // toute corruption "ASCII" heritee du stockage. C'est ce qui garantit un
+        // PNG propre a l'envoi vers texlive/ytotech.
+        try{
+          const clean=await reencodeImageB64(f.data,f.mime||mimeFor(f.path));
+          if(clean){out.push(Object.assign({},f,{data:clean,mime:ext==='jpg'||ext==='jpeg'?'image/jpeg':'image/png'}));continue;}
+        }catch(e){/* garde l'original si echec */}
       }
     }
     out.push(f);
@@ -2200,7 +2279,7 @@ function parseTexError(log){
 }
 
 // ---- Choix du serveur de compilation ----
-function getSrv(){return localStorage.getItem('ltx_srv')||'texlive';}
+function getSrv(){return localStorage.getItem('ltx_srv')||'ytotech';}
 function setSrv(v){localStorage.setItem('ltx_srv',v);const s=document.getElementById('srvSel');if(s)s.value=v;}
 
 // Compilation via latex.ytotech.com (API JSON, images en base64 -> pas de corruption).
