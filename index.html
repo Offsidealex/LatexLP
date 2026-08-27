@@ -498,9 +498,12 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.23</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.24</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
+    <button onclick="if(window.openEditorFind)openEditorFind()" id="findBtn" title="Rechercher dans le document (Ctrl+F)" style="padding:5px 9px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+    </button>
     <div class="pal-wrap" style="display:inline-block;position:relative">
       <button onclick="togglePalettePop(event)" id="paletteBtn" title="Palette de couleurs" style="padding:5px 9px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
@@ -517,9 +520,6 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M7.7 3l-6 10.4L4.85 19 10.8 8.6zM22.3 13.4L16.35 3H9.9l6 10.4zM5.6 20h12.8l3.15-5.5H8.75z"/></svg>
       <span id="drvBtnLabel">Drive</span>
       <span id="drvBtnDot" class="ghdot"></span>
-    </button>
-    <button onclick="if(window.openEditorFind)openEditorFind()" id="findBtn" title="Rechercher dans le document (Ctrl+F)" style="padding:5px 9px">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
     </button>
     <button class="btn-save" onclick="openSaveModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -600,7 +600,10 @@ body.light .pj-title{color:#1a1a2e}
 .pj-files-hdr,.pj-assets-hdr{font-size:10px;letter-spacing:1px;color:#5a5a70;font-weight:700;padding:8px 12px 4px;display:flex;align-items:center;justify-content:space-between}
 .pj-files-hdr button{background:none;border:none;color:#5a5a70;font-size:15px;cursor:pointer;line-height:1}
 .pj-files-hdr button:hover{color:#4dcc88}
-.pj-folder{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#8a8aa5;font-weight:600;padding:5px 8px 3px}
+.pj-folder{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#8a8aa5;font-weight:600;padding:5px 8px 3px;cursor:pointer;border-radius:5px}
+.pj-folder:hover{background:#20264a}
+.pj-folder.pjf-selected{background:#0d3b6633;color:#7ec4ff}
+body.light .pj-folder.pjf-selected{background:#dbeafe;color:#1a5a99}
 body.light .pj-folder{color:#6a6a80}
 .pitem-asset{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7a7a90;padding:5px 9px;border-radius:6px;width:100%}
 .pitem-asset .passet-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -3631,7 +3634,10 @@ function renderProjectScoped(){
   function renderNode(node,depth){
     let h='';
     for(const fn of Object.keys(node.folders).sort()){
-      h+=`<div class="pj-folder" style="padding-left:${8+depth*13}px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(fn)}</div>`;
+      const folderPath=(node.__path?node.__path+'/':'')+fn;
+      node.folders[fn].__path=folderPath;
+      const selCls=(window._importTargetDir===folderPath)?' pjf-selected':'';
+      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${folderPath.replace(/'/g,"\\'")}',event)" title="Cliquer pour choisir ce dossier comme cible d'import d'image"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(fn)}</div>`;
       h+=renderNode(node.folders[fn],depth+1);
     }
     const files=node.files.slice().sort((a,b)=>{
@@ -3651,7 +3657,9 @@ function renderProjectScoped(){
       }else{
         const ic=f.info.type==='binary'?'🖼':'📄';
         const apath=(f.fullpath||f.name).replace(/'/g,"\\'");
-        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span><button class="dedit" onclick="renameProjectAsset('${apath}',event)" title="Renommer ce fichier joint">✎</button><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
+        const isImg=/\.(png|jpe?g|gif|webp)$/i.test(f.name);
+        const clickPrev=isImg?`onclick="previewProjectImage('${apath}',event)" style="cursor:zoom-in"`:'';
+        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)}${isImg?' — cliquer pour apercu':' — inclus à la compilation'}"><span class="passet-ic">${ic}</span><span class="passet-name" ${clickPrev}>${esc(f.name)}</span><button class="dedit" onclick="renameProjectAsset('${apath}',event)" title="Renommer ce fichier joint">✎</button><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
       }
     }
     return h;
@@ -3659,7 +3667,7 @@ function renderProjectScoped(){
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
-    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image (png, jpg, pdf)" style="margin-left:2px">🖼</button></div>
+    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
     <input type="file" id="imgImport" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp,.pdf" multiple style="display:none" onchange="importImagesToProject(this.files);this.value=''">
     ${renderNode(root,0)}`;
 }
@@ -3727,10 +3735,32 @@ async function downloadProjectZip(pid){
 }
 
 // ---- Fichiers dans un projet ----
+// Dossier cible pour l'import d'images (chemin relatif dans le projet).
+window._importTargetDir=window._importTargetDir||'';
+function selectImportDir(path,e){
+  if(e)e.stopPropagation();
+  window._importTargetDir=(window._importTargetDir===path)?'':path; // reclic = deselection
+  renderDocs();
+  const hint=document.getElementById('importHint');
+  if(hint)hint.textContent=window._importTargetDir?('Cible : '+window._importTargetDir+'/'):'';
+}
 async function importImagesToProject(files){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
   if(!files||!files.length)return;
   const proj=getProject(currentProject);if(!proj)return;
+  // Dossier cible : celui selectionne, sinon on demande / defaut images/.
+  let dir=window._importTargetDir||'';
+  if(!dir){
+    // Proposer les dossiers existants pour eviter le doublon racine.
+    const dirs=new Set();
+    for(const p of Object.keys(proj.files||{})){const i=p.lastIndexOf('/');if(i>0)dirs.add(p.slice(0,i));}
+    for(const d of getDocs()){if(d.projectId===currentProject){const pp=d.projectPath||'';const i=pp.lastIndexOf('/');if(i>0)dirs.add(pp.slice(0,i));}}
+    const list=Array.from(dirs);
+    const suggestion=list.find(d=>/images?$/i.test(d))||list[0]||'images';
+    const ans=prompt('Dossier de destination dans le projet\n(clique un dossier avant pour eviter ceci) :',suggestion);
+    if(ans===null)return;
+    dir=ans.trim().replace(/^\/+|\/+$/g,'');
+  }
   let done=0, bad=[];
   for(const file of files){
     try{
@@ -3740,22 +3770,38 @@ async function importImagesToProject(files){
         r.onerror=function(){rej(new Error('lecture'));};
         r.readAsDataURL(file);
       });
-      // Verifier que l'image est decodable (sauf pdf)
       if(/\.(png|jpe?g|gif|webp)$/i.test(file.name)){
         const ok=await validateImageB64(b64,file.type||'image/png');
         if(!ok){bad.push(file.name+' (illisible / corrompue)');continue;}
       }
-      // Placer dans images/<nom> par defaut (c'est la convention du projet).
-      let path='images/'+file.name;
+      let path=(dir?dir+'/':'')+file.name;
       updateProject(currentProject,function(p){ if(!p.files)p.files={}; p.files[path]={type:'binary',data:b64,mime:file.type||mimeFor(path)}; });
       done++;
     }catch(e){ bad.push(file.name+' (erreur)'); }
   }
   cloudFlushNow();
   renderDocs();
-  let msg='Import terminé : '+done+' image(s) ajoutée(s) dans images/.';
+  let msg='Import terminé : '+done+' image(s) ajoutée(s)'+(dir?(' dans '+dir+'/'):'')+'.';
   if(bad.length)msg+='\n\nNon importées :\n- '+bad.join('\n- ');
   alert(msg);
+}
+// Apercu d'une image du projet dans une petite fenetre.
+function previewProjectImage(path,e){
+  if(e)e.stopPropagation();
+  const proj=getProject(currentProject);if(!proj||!proj.files||!(path in proj.files))return;
+  const info=proj.files[path];
+  const src='data:'+(info.mime||mimeFor(path))+';base64,'+info.data;
+  let ov=document.getElementById('imgPrevOverlay');
+  if(!ov){
+    ov=document.createElement('div');ov.id='imgPrevOverlay';
+    ov.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:30px';
+    ov.onclick=function(){ov.style.display='none';};
+    ov.innerHTML='<div id="imgPrevBox" style="max-width:90%;max-height:90%;text-align:center"><img id="imgPrevImg" style="max-width:100%;max-height:80vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5);background:#fff"><div id="imgPrevName" style="color:#e0e0e0;font-family:monospace;font-size:12.5px;margin-top:10px"></div></div>';
+    document.body.appendChild(ov);
+  }
+  ov.querySelector('#imgPrevImg').src=src;
+  ov.querySelector('#imgPrevName').textContent=path.split('/').pop();
+  ov.style.display='flex';
 }
 
 function addProjectFile(){
