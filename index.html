@@ -13,6 +13,8 @@ html,body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;backgroun
 .hdr{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#16213e;border-bottom:1px solid #2a2a4a}
 .logo{font-size:16px;font-weight:600;font-family:monospace;color:#e0e0e0;letter-spacing:-0.5px}
 .logo b{color:#4da6ff}
+#appVersion{font-size:10px;font-family:monospace;color:#5a6a8a;background:#0f0f1e;border:1px solid #2a3a5a;border-radius:10px;padding:1px 7px;margin-left:8px;vertical-align:middle}
+body.light #appVersion{color:#8a90a0;background:#eef0f6;border-color:#d8d8e4}
 .tbr{display:flex;gap:5px;margin-left:auto;align-items:center}
 .tbr button{font-size:12px;padding:5px 11px;border:1px solid #3a3a5a;border-radius:6px;background:#1a1a2e;color:#c0c0d0;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
 .tbr button:hover{background:#2a2a4a;color:#e0e0e0}
@@ -454,9 +456,12 @@ body.light .cg-logo{color:#1a1a2e}
 .cg-btn:disabled{opacity:.6;cursor:default}
 .cg-status{font-size:12px;color:#7a80a0;margin-top:16px;min-height:16px}
 .cg-status.err{color:#ff8080}
-.cg-progress{height:4px;background:#2a3a5a;border-radius:3px;margin-top:20px;overflow:hidden;opacity:0;transition:opacity .2s}
+.cg-progress-wrap{display:flex;align-items:center;gap:10px;margin-top:22px}
+.cg-progress{flex:1;height:9px;background:#2a3a5a;border-radius:6px;overflow:hidden;opacity:0;transition:opacity .2s}
 .cg-progress.show{opacity:1}
-.cg-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#4da6ff,#7ec4ff);border-radius:3px;transition:width .3s ease}
+.cg-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#4da6ff,#7ec4ff);border-radius:6px;transition:width .35s ease}
+.cg-progress-pct{font-size:12px;font-family:monospace;color:#7ec4ff;min-width:38px;text-align:right;opacity:0;transition:opacity .2s}
+.cg-progress-wrap.show .cg-progress,.cg-progress-wrap.show .cg-progress-pct{opacity:1}
 body.light .cg-progress{background:#d8e0f0}
 .cg-off{margin-top:18px;font-size:12.5px;color:#6a7090;background:none;border:none;cursor:pointer;text-decoration:underline;font-family:inherit}
 .cg-off:hover{color:#9aa0c0}
@@ -480,7 +485,7 @@ body.light .CodeMirror-dialog input{background:#fff;border-color:#d0d0e0;color:#
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Se connecter avec Google
     </button>
-    <div class="cg-progress" id="cgProgress"><div class="cg-progress-bar" id="cgProgressBar"></div></div>
+    <div class="cg-progress-wrap"><div class="cg-progress" id="cgProgress"><div class="cg-progress-bar" id="cgProgressBar"></div></div><span class="cg-progress-pct" id="cgProgressPct"></span></div>
     <div class="cg-status" id="cgStatus"></div>
     <button class="cg-off" onclick="cloudSkip()">Continuer hors-ligne sur ce poste</button>
   </div>
@@ -491,7 +496,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.7</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div class="pal-wrap" style="display:inline-block;position:relative">
@@ -2280,16 +2285,23 @@ async function compile(){
       clearTimeout(timeout);
       let blob=await res.blob();
       const ct=res.headers.get('content-type')||'';
-      // texlive.net peut renvoyer le PDF precede de quelques lignes de log.
-      // On cherche la signature %PDF dans les premiers 4 Ko pour ne pas rater un PDF valide.
-      const sniff=await blob.slice(0,4096).text().catch(()=>'');
-      const pdfPos=sniff.indexOf('%PDF-');
+      // texlive.net renvoie souvent le PDF PRECEDE d'un long log (chargement des packages).
+      // On cherche donc la signature %PDF- dans TOUT le contenu, pas seulement au debut.
+      const full=await blob.text().catch(()=>'');
+      const pdfPos=full.indexOf('%PDF-');
       const looksPdf=(res.ok&&ct.includes('pdf'))||pdfPos!==-1;
       if(looksPdf){
-        // Si le PDF est precede de texte, on recoupe le blob a partir de %PDF-.
+        // Si le PDF est precede de texte, on recoupe le blob binaire a partir de %PDF-.
         if(pdfPos>0){
           const buf=await blob.arrayBuffer();
-          blob=new Blob([buf.slice(pdfPos)],{type:'application/pdf'});
+          // Recaler sur l'octet %PDF- : on retrouve sa position en octets.
+          const bytes=new Uint8Array(buf);
+          let bpos=-1;
+          for(let k=0;k<bytes.length-4;k++){
+            if(bytes[k]===0x25&&bytes[k+1]===0x50&&bytes[k+2]===0x44&&bytes[k+3]===0x46&&bytes[k+4]===0x2d){bpos=k;break;}
+          }
+          if(bpos>0)blob=new Blob([buf.slice(bpos)],{type:'application/pdf'});
+          else blob=new Blob([buf],{type:'application/pdf'});
         }
         pdfBlob=blob;
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
@@ -3781,11 +3793,14 @@ saveFolders=function(f){_saveFolders0(f);scheduleCloudPush();};
 
 // ---- Écran de connexion ----
 function cgSetProgress(pct,show){
-  var p=document.getElementById('cgProgress'), b=document.getElementById('cgProgressBar');
-  if(!p||!b)return;
-  if(show===false){p.classList.remove('show');b.style.width='0%';return;}
-  p.classList.add('show');
-  b.style.width=Math.max(0,Math.min(100,pct))+'%';
+  var wrap=document.querySelector('.cg-progress-wrap');
+  var b=document.getElementById('cgProgressBar'), t=document.getElementById('cgProgressPct');
+  if(!b)return;
+  if(show===false){ if(wrap)wrap.classList.remove('show'); b.style.width='0%'; if(t)t.textContent=''; return; }
+  if(wrap)wrap.classList.add('show');
+  var v=Math.max(0,Math.min(100,Math.round(pct)));
+  b.style.width=v+'%';
+  if(t)t.textContent=v+'%';
 }
 function cloudHideGate(){document.getElementById('cloudGate').classList.add('hidden');}
 function cloudShowGate(){document.getElementById('cloudGate').classList.remove('hidden');}
