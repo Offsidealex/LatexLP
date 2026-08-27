@@ -498,7 +498,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.9</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.22</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div class="pal-wrap" style="display:inline-block;position:relative">
@@ -1967,6 +1967,36 @@ function getCompileBundle(){
   return {files:[{path:'document.tex',kind:'text',content:cm.getValue()}],mainPath:'document.tex',isProject:false};
 }
 
+// Verifie qu'une image base64 est decodable (detecte les PNG corrompus AVANT compilation).
+function validateImageB64(b64,mime){
+  return new Promise(function(resolve){
+    try{
+      // Verif rapide de la signature PNG (89 50 4E 47) sur les premiers octets.
+      if((mime||'').includes('png')||true){
+        const bin=atob((b64||'').slice(0,16));
+        // si ca ne commence pas par une signature d'image connue, on laissera le decodage trancher
+      }
+    }catch(e){resolve(false);return;}
+    const img=new Image();
+    let done=false;
+    const to=setTimeout(function(){if(!done){done=true;resolve(true);}},4000); // timeout: on n'ose pas bloquer
+    img.onload=function(){if(done)return;done=true;clearTimeout(to);resolve((img.naturalWidth||0)>0);};
+    img.onerror=function(){if(done)return;done=true;clearTimeout(to);resolve(false);};
+    img.src='data:'+(mime||'image/png')+';base64,'+b64;
+  });
+}
+// Verifie toutes les images d'un bundle. Retourne la liste des fichiers corrompus.
+async function findCorruptImages(files){
+  const bad=[];
+  for(const f of files){
+    if(f.kind==='binary' && /\.(png|jpe?g)$/i.test(f.path||'')){
+      const ok=await validateImageB64(f.data,f.mime);
+      if(!ok)bad.push(f.path);
+    }
+  }
+  return bad;
+}
+
 // Réduit une image (base64) en gardant son format et son nom de fichier.
 function downscaleImage(b64,mime,ext,maxDim,quality){
   return new Promise((res,rej)=>{
@@ -2078,6 +2108,12 @@ function buildFormData(files,mainPath){
 // l'utilisateur (document.tex) ou d'un package systeme (/usr/local/texlive...),
 // et recupere un numero de ligne quand il est rattache au fichier utilisateur.
 function parseTexErrorsAll(log){
+  // Cas ytotech : reponse JSON courte {"error":"SERVER_ERROR"} -> message clair.
+  if(/^\s*\{?\s*"?error"?\s*:?\s*"?SERVER_ERROR/i.test(log||'')||/SERVER_ERROR/.test(log||'')){
+    return [{msg:'Le serveur a rejete la compilation (SERVER_ERROR)',line:null,file:'',isUser:true,
+      hint:'server', ctx:log,
+      help:'Cause frequente : une image corrompue ou trop lourde dans le projet, ou un package non disponible. Verifie/supprime les images douteuses (ex. un PNG qui a deja pose probleme), puis reessaie. Tu peux aussi tenter l\'autre serveur.'}];
+  }
   const lines=(log||'').split(/\r?\n/);
   const errors=[];
   // Suivi du "fichier courant" via la pile de parentheses de TeX: (chemin ... )
@@ -2259,6 +2295,30 @@ async function compile(){
   if(bundle.isProject){
     setStatus('spin','Préparation du projet "'+bundle.projectName+'"…');
     bundle.files=computeNeededFiles(bundle.files,bundle.mainPath);
+    // Verification des images AVANT compilation : une image corrompue fait planter
+    // les deux serveurs, autant la signaler tout de suite avec un message clair.
+    try{
+      const bad=await findCorruptImages(bundle.files);
+      if(bad.length){
+        if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+        fr.style.display='none';
+        setStatus('err','Image corrompue');
+        const list=bad.map(function(p){return p.split('/').pop();});
+        let h='<div class="errpanel"><div class="errtitle">\u26a0 Image'+(bad.length>1?'s':'')+' corrompue'+(bad.length>1?'s':'')+' \u2014 compilation impossible</div>';
+        h+='<div class="errsub">Dans ton projet</div>';
+        list.forEach(function(nm,i){
+          h+='<div class="errcard errprimary erruser"><div class="errhead"><span class="errmsg">'+nm.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div><div class="errloc">Fichier joint</div>'
+            +'<div class="errhelp">Cette image ne peut pas \u00eatre lue (fichier ab\u00eem\u00e9). Supprime-la (croix rouge dans la liste des fichiers) puis r\u00e9importe-la depuis ton disque, ou remplace-la par une autre version (ex. un .jpg).</div></div>';
+        });
+        h+='</div>';
+        document.getElementById('pverr').innerHTML=h;
+        document.getElementById('pverr').classList.add('show');
+        document.getElementById('pdfframe').style.display='none';
+        document.getElementById('pvph').style.display='none';
+        btn.disabled=false;
+        return;
+      }
+    }catch(e){/* en cas de doute, on laisse la compilation suivre son cours */}
     bundle.files=await optimizeImagesForCompile(bundle.files);
     // Copie AVANT sanitize texlive : ytotech prefere les chemins/images d'origine.
     bundleForYtotech={files:bundle.files.slice(),mainPath:bundle.mainPath,isProject:true,projectName:bundle.projectName};
@@ -2482,6 +2542,9 @@ function showCompilePanel(log){
       extra='<div class="errhelp">Cette image est corrompue (souvent un PNG abîmé). '
         +'Supprime-la dans la liste des fichiers (croix rouge) et réimporte-la depuis ton disque, '
         +'ou remplace-la par une autre version (ex. le .jpg).</div>';
+    }else if(e.hint==='server'&&e.help){
+      loc='Serveur';
+      extra='<div class="errhelp">'+esc2(e.help)+'</div>';
     }
     return '<div class="errcard'+(primary?' errprimary':'')+(e.isUser?' erruser':'')+'">'
       + '<div class="errhead">'
@@ -3865,7 +3928,7 @@ function cloudShowGate(){document.getElementById('cloudGate').classList.remove('
 function cloudSkip(){localStorage.setItem('ltx_cloud_offline','1');cloudHideGate();showHome();}
 async function cloudLogin(){
   const btn=document.getElementById('cgBtn'),st=document.getElementById('cgStatus');
-  btn.disabled=true;st.className='cg-status';st.textContent='Ouverture de la fenêtre Google…';
+  btn.disabled=true;btn.style.display='none';st.className='cg-status';st.textContent='Ouverture de la fenêtre Google…';
   cgSetProgress(8,true);
   try{
     await drvRequestToken();
@@ -3884,7 +3947,7 @@ async function cloudLogin(){
   }catch(e){
     cgSetProgress(0,false);
     st.className='cg-status err';st.textContent='Connexion impossible : '+(e.message||e);
-    btn.disabled=false;
+    btn.disabled=false;btn.style.display='';
   }
 }
 // ---- Démarrage : reconnexion silencieuse si déjà connecté ----
@@ -3950,10 +4013,14 @@ window.addEventListener('load',()=>setTimeout(cloudBoot,150));
   function allMatches(q){
     var res=[];
     if(!q||!window.cm)return res;
-    var ql=q.toLowerCase();
-    for(var i=0;i<cm.lineCount();i++){
-      var line=cm.getLine(i).toLowerCase(),from=0,idx;
-      while((idx=line.indexOf(ql,from))!==-1){res.push({line:i,ch:idx});from=idx+Math.max(1,ql.length);}
+    // On cherche dans le TEXTE COMPLET (getValue), infaillible meme sur gros fichiers.
+    var full=cm.getValue();
+    var hay=full.toLowerCase(), ql=q.toLowerCase();
+    var from=0, idx;
+    while((idx=hay.indexOf(ql,from))!==-1){
+      var pos=cm.posFromIndex(idx);          // convertit l'index en {line,ch}
+      res.push({line:pos.line,ch:pos.ch});
+      from=idx+Math.max(1,ql.length);
     }
     return res;
   }
