@@ -564,6 +564,9 @@ body.light .pj-title{color:#1a1a2e}
 body.light .pj-folder{color:#6a6a80}
 .pitem-asset{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7a7a90;padding:5px 9px;border-radius:6px}
 .pitem-asset:hover{background:#252a4d}
+.pitem-asset .ddel{opacity:0;margin-left:auto;font-size:13px;color:#cc4444;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
+.pitem-asset:hover .ddel{opacity:0.8}
+.pitem-asset .ddel:hover{opacity:1}
 body.light .pitem-asset:hover{background:#f0f2fb}
 .passet-ic{font-size:12px;flex-shrink:0}
 .passet-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3282,7 +3285,7 @@ function renderProjectScoped(){
     node.files.push(Object.assign({name:parts[parts.length-1]},payload));
   }
   for(const d of docs)addPath(d.projectPath||d.name,{kind:'tex',doc:d});
-  for(const [path,info] of Object.entries(proj.files||{}))addPath(path,{kind:'asset',info});
+  for(const [path,info] of Object.entries(proj.files||{}))addPath(path,{kind:'asset',info,fullpath:path});
   function renderNode(node,depth){
     let h='';
     for(const fn of Object.keys(node.folders).sort()){
@@ -3304,7 +3307,8 @@ function renderProjectScoped(){
         h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${del}</div>`;
       }else{
         const ic=f.info.type==='binary'?'🖼':'📄';
-        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span></div>`;
+        const apath=(f.fullpath||f.name).replace(/'/g,"\\'");
+        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
       }
     }
     return h;
@@ -3394,6 +3398,16 @@ function addProjectFile(){
   openDoc(id,false);
   renderDocs();
 }
+function deleteProjectAsset(path,e){
+  if(e)e.stopPropagation();
+  if(!currentProject)return;
+  const proj=getProject(currentProject);if(!proj||!proj.files||!(path in proj.files))return;
+  const base=path.split('/').pop();
+  if(!confirm('Supprimer le fichier joint « '+base+' » ?\n(La suppression se propage sur tous tes postes.)'))return;
+  updateProject(currentProject,p=>{ if(p.files)delete p.files[path]; });
+  renderDocs();
+}
+
 function deleteProjectFile(id,e){
   if(e)e.stopPropagation();
   const doc=getDocs().find(d=>d.id===id);if(!doc)return;
