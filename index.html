@@ -203,6 +203,34 @@ body.light .pal-check{color:#1a5a99}
 .pverr.show{display:block}
 .pverr .pverr-title{color:#ff6060;font-weight:bold;margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:0.8px}
 .pverr-body{margin:8px 0 0;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#e0a0a0;max-height:100%;overflow:auto}
+/* ===== Panneau d'erreurs facon Overleaf ===== */
+.errpanel{font-family:system-ui,sans-serif;color:#e0e0e0}
+.errtitle{font-size:14px;font-weight:700;color:#ff8080;margin-bottom:14px}
+.errsub{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:#7a8aa0;font-weight:700;margin:12px 0 7px}
+.errcard{background:#1e2340;border:1px solid #2a3a5a;border-left:3px solid #5a6a8a;border-radius:8px;padding:11px 13px;margin-bottom:8px}
+.errcard.erruser{border-left-color:#ff6060}
+.errcard.errprimary{background:#2a1a2a;border-color:#5a2a3a;box-shadow:0 0 0 1px #5a2a3a}
+.errhead{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.errmsg{font-size:13.5px;font-weight:600;color:#ffd0d0;line-height:1.4;font-family:"JetBrains Mono",monospace}
+.errcard.erruser .errmsg{color:#ffb0b0}
+.errloc{font-size:11.5px;color:#8a9ab0;margin-top:5px}
+.errjump{flex-shrink:0;background:#0d3b66;color:#7ec4ff;border:1px solid #1a5a99;border-radius:6px;cursor:pointer;padding:5px 11px;font-size:12px;font-family:inherit;font-weight:600;white-space:nowrap}
+.errjump:hover{background:#1a5a99;color:#fff}
+.errdetails{margin-top:12px;border:1px solid #2a3a5a;border-radius:8px;overflow:hidden;background:#141a30}
+.errdetails summary{cursor:pointer;padding:9px 13px;font-size:12.5px;color:#90a8c8;user-select:none;font-weight:500}
+.errdetails summary:hover{background:#1a2440;color:#c0d0e8}
+.errdetails[open] summary{border-bottom:1px solid #2a3a5a}
+.errdetails .errcard{margin:8px 10px}
+.errraw{margin:0;padding:12px 14px;font-family:"JetBrains Mono",monospace;font-size:11px;line-height:1.5;color:#c0a0a0;white-space:pre-wrap;word-break:break-word;max-height:340px;overflow:auto}
+body.light .errpanel{color:#1a1a2e}
+body.light .errcard{background:#fff;border-color:#e0e2ee;border-left-color:#b0b8c8}
+body.light .errcard.erruser{border-left-color:#cc3030}
+body.light .errcard.errprimary{background:#fff0f2;border-color:#e8b0b8}
+body.light .errmsg{color:#a02030}
+body.light .errloc{color:#6a7a90}
+body.light .errdetails{background:#f5f5fa;border-color:#e0e2ee}
+body.light .errdetails summary{color:#3a5a99}
+body.light .errraw{color:#8a4a4a}
 
 .log{flex-shrink:0;padding:7px 14px;font-size:12px;font-family:monospace;color:#8090a0;border-top:1px solid #2a2a4a;background:#0a0a18;max-height:90px;overflow-y:auto;display:none;white-space:pre-wrap;line-height:1.5}
 .log.err{color:#ff6060}
@@ -426,6 +454,10 @@ body.light .cg-logo{color:#1a1a2e}
 .cg-btn:disabled{opacity:.6;cursor:default}
 .cg-status{font-size:12px;color:#7a80a0;margin-top:16px;min-height:16px}
 .cg-status.err{color:#ff8080}
+.cg-progress{height:4px;background:#2a3a5a;border-radius:3px;margin-top:20px;overflow:hidden;opacity:0;transition:opacity .2s}
+.cg-progress.show{opacity:1}
+.cg-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#4da6ff,#7ec4ff);border-radius:3px;transition:width .3s ease}
+body.light .cg-progress{background:#d8e0f0}
 .cg-off{margin-top:18px;font-size:12.5px;color:#6a7090;background:none;border:none;cursor:pointer;text-decoration:underline;font-family:inherit}
 .cg-off:hover{color:#9aa0c0}
 </style>
@@ -448,6 +480,7 @@ body.light .CodeMirror-dialog input{background:#fff;border-color:#d0d0e0;color:#
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       Se connecter avec Google
     </button>
+    <div class="cg-progress" id="cgProgress"><div class="cg-progress-bar" id="cgProgressBar"></div></div>
     <div class="cg-status" id="cgStatus"></div>
     <button class="cg-off" onclick="cloudSkip()">Continuer hors-ligne sur ce poste</button>
   </div>
@@ -566,9 +599,12 @@ body.light .pj-folder{color:#6a6a80}
 .pitem-asset .passet-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pitem-asset:hover{background:#252a4d}
 .pitem-asset{position:relative}
-.pitem-asset .ddel{opacity:0.55;margin-left:auto;flex-shrink:0;font-size:14px;color:#cc4444;padding:0 6px;background:none;border:none;cursor:pointer;line-height:1}
+.pitem-asset .ddel{opacity:0.55;flex-shrink:0;font-size:14px;color:#cc4444;padding:0 6px;background:none;border:none;cursor:pointer;line-height:1}
 .pitem-asset:hover .ddel{opacity:1}
 .pitem-asset .ddel:hover{opacity:1;transform:scale(1.15)}
+.pitem-asset .dedit{opacity:0.55;margin-left:auto;flex-shrink:0;font-size:12px;color:#6a8aa8;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
+.pitem-asset:hover .dedit{opacity:1}
+.pitem-asset .dedit:hover{color:#4da6ff}
 body.light .pitem-asset:hover{background:#f0f2fb}
 .passet-ic{font-size:12px;flex-shrink:0}
 .passet-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2030,6 +2066,57 @@ function buildFormData(files,mainPath){
   return fd;
 }
 // Extrait l'erreur lisible d'un log LaTeX (la ligne « ! … » + contexte + n° de ligne).
+// ===== Parseur d'erreurs facon Overleaf =====
+// Extrait TOUTES les erreurs du log, note si elles viennent du document de
+// l'utilisateur (document.tex) ou d'un package systeme (/usr/local/texlive...),
+// et recupere un numero de ligne quand il est rattache au fichier utilisateur.
+function parseTexErrorsAll(log){
+  const lines=(log||'').split(/\r?\n/);
+  const errors=[];
+  // Suivi du "fichier courant" via la pile de parentheses de TeX: (chemin ... )
+  // On approxime en reperant le dernier "(./xxx" ou "(/usr/...".
+  let curFile=null;
+  const fileStack=[];
+  function scanFiles(line){
+    // TeX ecrit "(chemin" quand il ouvre un fichier
+    const re=/\(([^()\s]+\.(?:tex|sty|cls|def|cfg|ldf|fd|code\.tex))/g;
+    let m;
+    while((m=re.exec(line))){fileStack.push(m[1]);curFile=m[1];}
+    // et ")" quand il ferme — approximation: on ne depile pas finement
+  }
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    scanFiles(line);
+    let isErr=false, msg='';
+    if(/^!\s/.test(line)){isErr=true;msg=line.replace(/^!\s*/,'').trim();}
+    else if(/^(?:LaTeX|Package|Class|pdfTeX)\s.*Error/i.test(line)){isErr=true;msg=line.trim();}
+    else if(/^!pdfTeX error/.test(line)){isErr=true;msg=line.replace(/^!\s*/,'').trim();}
+    if(!isErr)continue;
+    // Chercher un numero de ligne dans les ~12 lignes suivantes (l.NN ...)
+    let lineNo=null, ctxFile=curFile;
+    const ctx=[line];
+    for(let j=i+1;j<Math.min(lines.length,i+12);j++){
+      ctx.push(lines[j]);
+      const ml=lines[j].match(/^l\.(\d+)/);
+      if(ml&&!lineNo){lineNo=parseInt(ml[1],10);}
+      // "on input line NN"
+      const mi=lines[j].match(/on input line (\d+)/);
+      if(mi&&!lineNo){lineNo=parseInt(mi[1],10);}
+      if(/^!\s/.test(lines[j]))break; // erreur suivante
+    }
+    // "on input line NN" peut aussi etre sur la meme ligne
+    const same=line.match(/on input line (\d+)/);
+    if(same&&!lineNo)lineNo=parseInt(same[1],10);
+
+    // Est-ce le fichier de l'utilisateur ?
+    // document.tex = fichier principal ; un fichier sans /usr/ = a lui aussi.
+    const f=(ctxFile||'').toLowerCase();
+    const isUser = f.includes('document.tex') || (f && !f.includes('/usr/') && !f.includes('texmf'));
+    errors.push({msg:msg, line:lineNo, file:ctxFile||'', isUser:isUser, ctx:ctx.join('\n')});
+  }
+  return errors;
+}
+
 function parseTexError(log){
   const lines=(log||'').split(/\r?\n/);
   let idx=lines.findIndex(l=>/^!/.test(l));
@@ -2204,9 +2291,14 @@ async function compile(){
         btn.disabled=false;
       }else{
         const log=await blob.text();
-        const err=(srv==='ytotech')?parseYtotechError(log):parseTexError(log);
         setStatus('err','Erreur de compilation');
-        showCompileError('⚠ '+err.summary,err.detail);
+        if(srv==='ytotech'){
+          // ytotech renvoie du JSON : on extrait le vrai log texte puis on parse.
+          let raw=log; try{const j=JSON.parse(log);raw=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||log;}catch(e){}
+          showCompilePanel(String(raw));
+        }else{
+          showCompilePanel(log);
+        }
         btn.disabled=false;
       }
       return;
@@ -2251,6 +2343,66 @@ function compileWithFallback(){
 function showCompileError(title,body){
   const pv=document.getElementById('pverr');
   pv.innerHTML='<div class="pverr-title">'+esc(title)+'</div><pre class="pverr-body">'+esc(body)+'</pre>';
+  pv.classList.add('show');
+  document.getElementById('pdfframe').style.display='none';
+  document.getElementById('pvph').style.display='none';
+}
+
+// ===== Panneau d'erreurs facon Overleaf =====
+function showCompilePanel(log){
+  const pv=document.getElementById('pverr');
+  const all=parseTexErrorsAll(log);
+  // Dedoublonnage (meme message + meme ligne)
+  const seen=new Set(); const errs=[];
+  for(const e of all){const k=e.msg+'|'+(e.line||''); if(seen.has(k))continue; seen.add(k); errs.push(e);}
+  const userErrs=errs.filter(e=>e.isUser);
+  const otherErrs=errs.filter(e=>!e.isUser);
+
+  if(!errs.length){
+    // Rien d'exploitable : on retombe sur le log brut.
+    showCompileError('\u26a0 Erreur de compilation', (log||'').split(/\r?\n/).filter(l=>l.trim()).slice(-25).join('\n'));
+    return;
+  }
+
+  function esc2(x){return (x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function errCard(e,primary){
+    const jump = (e.isUser&&e.line)
+      ? '<button class="errjump" onclick="jumpToLine('+e.line+')">\u279c ligne '+e.line+'</button>'
+      : '';
+    const loc = e.isUser
+      ? (e.line?('Ton document, ligne '+e.line):'Ton document')
+      : ('Package : '+esc2((e.file||'').split('/').pop()));
+    return '<div class="errcard'+(primary?' errprimary':'')+(e.isUser?' erruser':'')+'">'
+      + '<div class="errhead">'
+      +   '<span class="errmsg">'+esc2(e.msg)+'</span>'
+      +   jump
+      + '</div>'
+      + '<div class="errloc">'+loc+'</div>'
+      + '</div>';
+  }
+
+  let h='<div class="errpanel">';
+  h+='<div class="errtitle">\u26a0 '+errs.length+' erreur'+(errs.length>1?'s':'')+' \u2014 compilation \u00e9chou\u00e9e</div>';
+
+  if(userErrs.length){
+    h+='<div class="errsub">Dans ton document</div>';
+    userErrs.forEach((e,i)=>{h+=errCard(e, i===0);});
+  }else{
+    // Aucune erreur pointant clairement le document : on met la 1re en avant
+    h+='<div class="errsub">Premi\u00e8re erreur d\u00e9tect\u00e9e</div>';
+    h+=errCard(errs[0], true);
+  }
+
+  if(otherErrs.length){
+    h+='<details class="errdetails"><summary>'+otherErrs.length+' erreur'+(otherErrs.length>1?'s':'')+' li\u00e9e'+(otherErrs.length>1?'s':'')+' aux packages (souvent des cons\u00e9quences de la premi\u00e8re)</summary>';
+    otherErrs.forEach(e=>{h+=errCard(e,false);});
+    h+='</details>';
+  }
+
+  h+='<details class="errdetails errrawwrap"><summary>Voir le journal complet</summary><pre class="errraw">'+esc2(log)+'</pre></details>';
+  h+='</div>';
+
+  pv.innerHTML=h;
   pv.classList.add('show');
   document.getElementById('pdfframe').style.display='none';
   document.getElementById('pvph').style.display='none';
@@ -3317,12 +3469,13 @@ function renderProjectScoped(){
         const d=f.doc,isMain=d.projectPath===proj.mainPath;
         const st=drvStateFor(d);
         const badge=(st==='off')?'':`<button class="dsync ${st}" title="${esc(drvStateTitle(st))}" onclick="drvPushCurrent('${d.id}',event)">${drvStateIcon(st)}</button>`;
+        const ren=isMain?'':`<button class="dedit" onclick="renameProjectFile('${d.id}',event)" title="Renommer ce fichier">✎</button>`;
         const del=isMain?'':`<button class="ddel" onclick="deleteProjectFile('${d.id}',event)" title="Supprimer ce fichier">✕</button>`;
-        h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${del}</div>`;
+        h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${ren}${del}</div>`;
       }else{
         const ic=f.info.type==='binary'?'🖼':'📄';
         const apath=(f.fullpath||f.name).replace(/'/g,"\\'");
-        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
+        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)} — inclus à la compilation"><span class="passet-ic">${ic}</span><span class="passet-name">${esc(f.name)}</span><button class="dedit" onclick="renameProjectAsset('${apath}',event)" title="Renommer ce fichier joint">✎</button><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
       }
     }
     return h;
@@ -3412,6 +3565,62 @@ function addProjectFile(){
   openDoc(id,false);
   renderDocs();
 }
+function renameProjectFile(id,e){
+  if(e)e.stopPropagation();
+  const doc=getDocs().find(d=>d.id===id);if(!doc)return;
+  const proj=getProject(doc.projectId);
+  if(proj&&doc.projectPath===proj.mainPath){alert('Le fichier principal ne peut pas etre renomme.');return;}
+  const old=doc.projectPath||doc.name;
+  let nn=prompt('Nouveau nom du fichier :',old);
+  if(nn===null)return; nn=nn.trim(); if(!nn||nn===old)return;
+  if(!/\.tex$/i.test(nn))nn+='.tex';
+  if(getDocs().some(d=>d.projectId===doc.projectId&&d.id!==id&&d.projectPath===nn)){alert('Un fichier porte deja ce nom.');return;}
+  const docs=getDocsRaw();const i=docs.findIndex(d=>d.id===id);
+  if(i!==-1){docs[i].projectPath=nn;docs[i].name=nn;docs[i].updatedAt=Date.now();saveDocs(docs);}
+  cloudFlushNow();
+  renderDocs();
+}
+
+// Renomme une image / piece jointe ET met a jour les \includegraphics/\input qui la referencent.
+function renameProjectAsset(path,e){
+  if(e)e.stopPropagation();
+  if(!currentProject)return;
+  const proj=getProject(currentProject);if(!proj||!proj.files||!(path in proj.files))return;
+  const parts=path.split('/'); const oldBase=parts.pop(); const dir=parts.join('/');
+  let nn=prompt('Nouveau nom du fichier :',oldBase);
+  if(nn===null)return; nn=nn.trim(); if(!nn||nn===oldBase)return;
+  // conserver l'extension d'origine si l'utilisateur ne la remet pas
+  const oldExt=(oldBase.match(/\.[^.]+$/)||[''])[0];
+  if(oldExt && !/\.[^.]+$/.test(nn))nn+=oldExt;
+  const newPath=dir?dir+'/'+nn:nn;
+  if(newPath in proj.files){alert('Un fichier porte deja ce nom.');return;}
+  // 1) deplacer la cle dans project.files
+  updateProject(currentProject,p=>{
+    p.files[newPath]=p.files[path];
+    delete p.files[path];
+  });
+  // 2) reecrire les references dans les .tex du projet
+  const oldNoExt=oldBase.replace(/\.[^.]+$/,'');
+  const newNoExt=nn.replace(/\.[^.]+$/,'');
+  const docs=getDocsRaw();let changed=false;
+  for(const d of docs){
+    if(d.projectId!==currentProject)continue;
+    let c=d.content||'';
+    // remplace le nom de fichier (avec ou sans extension, avec ou sans dossier) dans \includegraphics et \input
+    const reExact=new RegExp('([{,\\s])'+oldBase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([},\\s])','g');
+    const reNoExt=new RegExp('([{,\\s])'+oldNoExt.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'([},\\s])','g');
+    const nc=c.replace(reExact,'$1'+nn+'$2').replace(reNoExt,'$1'+newNoExt+'$2');
+    if(nc!==c){d.content=nc;d.updatedAt=Date.now();changed=true;
+      if(currentId===d.id){/* mettra a jour l'editeur au renderDocs via openDoc si besoin */}
+    }
+  }
+  if(changed)saveDocs(docs);
+  // si le fichier courant a change, recharger son contenu dans l'editeur
+  if(currentId){const cur=getDocs().find(d=>d.id===currentId);if(cur&&cur.projectId===currentProject){cm.setValue(cur.content||'');cm.clearHistory();}}
+  cloudFlushNow();
+  renderDocs();
+}
+
 function deleteProjectAsset(path,e){
   if(e)e.stopPropagation();
   if(!currentProject)return;
@@ -3529,23 +3738,36 @@ saveProjects=function(p){_saveProjects0(p);scheduleCloudPush();};
 saveFolders=function(f){_saveFolders0(f);scheduleCloudPush();};
 
 // ---- Écran de connexion ----
+function cgSetProgress(pct,show){
+  var p=document.getElementById('cgProgress'), b=document.getElementById('cgProgressBar');
+  if(!p||!b)return;
+  if(show===false){p.classList.remove('show');b.style.width='0%';return;}
+  p.classList.add('show');
+  b.style.width=Math.max(0,Math.min(100,pct))+'%';
+}
 function cloudHideGate(){document.getElementById('cloudGate').classList.add('hidden');}
 function cloudShowGate(){document.getElementById('cloudGate').classList.remove('hidden');}
 function cloudSkip(){localStorage.setItem('ltx_cloud_offline','1');cloudHideGate();showHome();}
 async function cloudLogin(){
   const btn=document.getElementById('cgBtn'),st=document.getElementById('cgStatus');
   btn.disabled=true;st.className='cg-status';st.textContent='Ouverture de la fenêtre Google…';
+  cgSetProgress(8,true);
   try{
     await drvRequestToken();
+    cgSetProgress(30);
     try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
     st.textContent='Récupération de tes projets…';
+    cgSetProgress(55);
     await cloudLoadAndMerge();
+    cgSetProgress(80);
     await cloudPushState();            // 1re connexion : envoie l'état déjà présent
+    cgSetProgress(100);
     localStorage.setItem('ltx_cloud_enabled','1');
     localStorage.removeItem('ltx_cloud_offline');
     try{updateDrvStatus();}catch{}
-    cloudHideGate();showHome();renderDocs();
+    setTimeout(function(){cloudHideGate();showHome();renderDocs();cgSetProgress(0,false);},250);
   }catch(e){
+    cgSetProgress(0,false);
     st.className='cg-status err';st.textContent='Connexion impossible : '+(e.message||e);
     btn.disabled=false;
   }
@@ -3557,15 +3779,20 @@ async function cloudBoot(){
   if(localStorage.getItem('ltx_cloud_enabled')!=='1'){cloudShowGate();return;}
   cloudShowGate();
   const st=document.getElementById('cgStatus');st.className='cg-status';st.textContent='Reconnexion…';
+  cgSetProgress(10,true);
   try{
     drvInitClient();
     await new Promise((resolve,reject)=>{_drvResolve=resolve;_drvReject=reject;_drvTokenClient.requestAccessToken({prompt:''});});
+    cgSetProgress(35);
     try{const r=await drvApi('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)');if(r.ok){const j=await r.json();_drvEmail=j.user&&j.user.emailAddress;}}catch{}
     st.textContent='Récupération de tes projets…';
+    cgSetProgress(60);
     await cloudLoadAndMerge();scheduleCloudPush();
+    cgSetProgress(100);
     try{updateDrvStatus();}catch{}
-    cloudHideGate();showHome();renderDocs();
+    setTimeout(function(){cloudHideGate();showHome();renderDocs();cgSetProgress(0,false);},250);
   }catch(e){
+    cgSetProgress(0,false);
     document.getElementById('cgStatus').textContent='';
     document.getElementById('cgBtn').disabled=false;
   }
