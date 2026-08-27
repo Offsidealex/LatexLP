@@ -3515,6 +3515,22 @@ window.addEventListener('load',function(){
       'Shift-Ctrl-G':'findPrev','Shift-Cmd-G':'findPrev'
     }));
   })();
+  // Intercepte Ctrl+F AVANT le navigateur et le redirige vers l'editeur.
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&(e.key==='f'||e.key==='F')){
+      if(!window.cm)return;
+      // Seulement si on n'est pas dans un autre champ de saisie
+      var t=e.target, tag=(t&&t.tagName)||'';
+      var inField=(tag==='INPUT'||tag==='TEXTAREA')&&!(t.classList&&t.classList.contains('CodeMirror'));
+      // La zone CodeMirror : on considere l'editeur actif si le doc n'est pas sur l'accueil
+      if(document.body.classList.contains('home'))return; // sur l'accueil, laisse le navigateur
+      if(inField)return;
+      e.preventDefault();
+      e.stopPropagation();
+      cm.focus();
+      cm.execCommand('findPersistent');
+    }
+  },true); // true = capture phase, passe avant le navigateur
 });
 function jumpToLine(n){
   if(!window.cm||!n)return;
