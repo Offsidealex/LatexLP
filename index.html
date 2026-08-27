@@ -218,6 +218,8 @@ body.light .pal-check{color:#1a5a99}
 .errloc{font-size:11.5px;color:#8a9ab0;margin-top:5px}
 .errjump{flex-shrink:0;background:#0d3b66;color:#7ec4ff;border:1px solid #1a5a99;border-radius:6px;cursor:pointer;padding:5px 11px;font-size:12px;font-family:inherit;font-weight:600;white-space:nowrap}
 .errjump:hover{background:#1a5a99;color:#fff}
+.errhelp{margin-top:9px;font-size:12.5px;line-height:1.5;color:#c8d0e0;background:#0f1a30;border:1px solid #2a3a5a;border-radius:6px;padding:9px 11px}
+body.light .errhelp{color:#3a4a60;background:#f0f4fb;border-color:#d8e0f0}
 .errdetails{margin-top:12px;border:1px solid #2a3a5a;border-radius:8px;overflow:hidden;background:#141a30}
 .errdetails summary{cursor:pointer;padding:9px 13px;font-size:12.5px;color:#90a8c8;user-select:none;font-weight:500}
 .errdetails summary:hover{background:#1a2440;color:#c0d0e8}
@@ -496,7 +498,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.8</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.9</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div class="pal-wrap" style="display:inline-block;position:relative">
@@ -2096,6 +2098,14 @@ function parseTexErrorsAll(log){
     if(/^!\s/.test(line)){isErr=true;msg=line.replace(/^!\s*/,'').trim();}
     else if(/^(?:LaTeX|Package|Class|pdfTeX)\s.*Error/i.test(line)){isErr=true;msg=line.trim();}
     else if(/^!pdfTeX error/.test(line)){isErr=true;msg=line.replace(/^!\s*/,'').trim();}
+    // Cas special : image PNG corrompue (frequent) -> message clair + nom du fichier.
+    if(/libpng|PNG file corrupted|error reading the file|Cannot determine size of graphic/i.test(line)){
+      const mf=line.match(/file\s+\.?\/?([^\s):]+\.(?:png|jpe?g|pdf|eps))/i)||line.match(/([^\s:]+\.(?:png|jpe?g|pdf|eps))/i);
+      const fname=mf?mf[1]:'une image';
+      errors.push({msg:'Image illisible ou corrompue : '+fname,line:null,file:'',isUser:true,
+        ctx:line, hint:'image', imgName:fname});
+      continue;
+    }
     if(!isErr)continue;
     // Chercher un numero de ligne dans les ~12 lignes suivantes (l.NN ...)
     let lineNo=null, ctxFile=curFile;
@@ -2245,13 +2255,18 @@ async function compile(){
   fr.addEventListener('load',_iframeLoadHandler);
 
   const bundle=getCompileBundle();
+  let bundleForYtotech=null;
   if(bundle.isProject){
     setStatus('spin','Préparation du projet "'+bundle.projectName+'"…');
     bundle.files=computeNeededFiles(bundle.files,bundle.mainPath);
     bundle.files=await optimizeImagesForCompile(bundle.files);
+    // Copie AVANT sanitize texlive : ytotech prefere les chemins/images d'origine.
+    bundleForYtotech={files:bundle.files.slice(),mainPath:bundle.mainPath,isProject:true,projectName:bundle.projectName};
     const clean=sanitizeBundleForTexlive(bundle.files,bundle.mainPath);
     bundle.files=clean.files;bundle.mainPath=clean.mainPath;
     setStatus('spin','Compilation ('+bundle.files.length+' fichiers)…');
+  }else{
+    bundleForYtotech=bundle;
   }
   // Comme Overleaf : compiler en nonstopmode pour passer outre les erreurs
   // récupérables et produire le PDF quand c'est possible.
@@ -2319,7 +2334,7 @@ async function compile(){
         if(srv!=='ytotech' && /Output written on .*\.pdf/.test(log)){
           try{
             setStatus('spin','Nouvelle tentative via ytotech…');
-            const res3=await compileViaYtotech(bundle);
+            const res3=await compileViaYtotech(bundleForYtotech||bundle);
             const blob3=await res3.blob();
             const txt3=await blob3.text().catch(()=>'');
             const pos3=txt3.indexOf('%PDF-');
@@ -2458,15 +2473,23 @@ function showCompilePanel(log){
     const jump = (e.isUser&&e.line)
       ? '<button class="errjump" onclick="jumpToLine('+e.line+')">\u279c ligne '+e.line+'</button>'
       : '';
-    const loc = e.isUser
+    let loc = e.isUser
       ? (e.line?('Ton document, ligne '+e.line):'Ton document')
       : ('Package : '+esc2((e.file||'').split('/').pop()));
+    let extra='';
+    if(e.hint==='image'){
+      loc='Fichier joint';
+      extra='<div class="errhelp">Cette image est corrompue (souvent un PNG abîmé). '
+        +'Supprime-la dans la liste des fichiers (croix rouge) et réimporte-la depuis ton disque, '
+        +'ou remplace-la par une autre version (ex. le .jpg).</div>';
+    }
     return '<div class="errcard'+(primary?' errprimary':'')+(e.isUser?' erruser':'')+'">'
       + '<div class="errhead">'
       +   '<span class="errmsg">'+esc2(e.msg)+'</span>'
       +   jump
       + '</div>'
       + '<div class="errloc">'+loc+'</div>'
+      + extra
       + '</div>';
   }
 
