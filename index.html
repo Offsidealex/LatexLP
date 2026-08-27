@@ -478,6 +478,9 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
       <span id="drvBtnLabel">Drive</span>
       <span id="drvBtnDot" class="ghdot"></span>
     </button>
+    <button onclick="if(window.openEditorFind)openEditorFind()" id="findBtn" title="Rechercher dans le document (Ctrl+F)" style="padding:5px 9px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+    </button>
     <button class="btn-save" onclick="openSaveModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       Sauver <kbd>Ctrl+S</kbd>
@@ -508,7 +511,7 @@ body.light #projectsHome{background:#f5f5fa}
 /* Bascule des modes */
 body.home .main{display:none!important}
 body:not(.home) #projectsHome{display:none!important}
-body.home #btnTex,body.home .btn-save,body.home #btnpdf,body.home .btn-compile{display:none!important}
+body.home #btnTex,body.home .btn-save,body.home #btnpdf,body.home .btn-compile,body.home #findBtn{display:none!important}
 body.inproject #sbFilesTitle,body.inproject #tplSection{display:none!important}
 
 .ph-wrap{max-width:1060px;width:100%;margin:0 auto;padding:32px 26px 16px;display:flex;flex-direction:column;height:100%;overflow:hidden}
@@ -972,7 +975,8 @@ ccf:`\\documentclass[11pt,a4paper]{article}
 \\end{document}`
 };
 
-function getDocs(){try{return JSON.parse(localStorage.getItem('ltx_docs')||'[]')}catch{return[]}}
+function getDocsRaw(){try{return JSON.parse(localStorage.getItem('ltx_docs')||'[]')}catch{return[]}}
+function getDocs(){return getDocsRaw().filter(d=>!d.deleted)}
 function saveDocs(d){localStorage.setItem('ltx_docs',JSON.stringify(d))}
 function getLastId(){return localStorage.getItem('ltx_last')}
 function setLastId(id){localStorage.setItem('ltx_last',id)}
@@ -988,7 +992,32 @@ function fmt(ts){const d=new Date(ts);return d.toLocaleDateString('fr-FR',{day:'
 //   doc.projectId    -> link to project
 //   doc.projectPath  -> path inside project, e.g. 'chap3/main.tex'
 // Non-project docs (standalone) work as before with their doc.folder.
-function getProjects(){try{return JSON.parse(localStorage.getItem('ltx_projects')||'[]')}catch{return[]}}
+function getProjectsRaw(){try{return JSON.parse(localStorage.getItem('ltx_projects')||'[]')}catch{return[]}}
+function getProjects(){return getProjectsRaw().filter(p=>!p.deleted)}
+
+// ===== Suppression douce (corbeille, propagee au cloud) =====
+function softDeleteDoc(id){
+  const docs=getDocsRaw();const i=docs.findIndex(d=>d.id===id);
+  if(i===-1)return;
+  docs[i].deleted=Date.now();docs[i].updatedAt=Date.now();
+  saveDocs(docs);
+}
+function softDeleteProject(pid){
+  // marque le projet ET tous ses docs comme supprimes
+  const ps=getProjectsRaw();const i=ps.findIndex(p=>p.id===pid);
+  if(i!==-1){ps[i].deleted=Date.now();ps[i].updatedAt=Date.now();saveProjects(ps);}
+  const docs=getDocsRaw();let ch=false;
+  for(const d of docs){if(d.projectId===pid&&!d.deleted){d.deleted=Date.now();d.updatedAt=Date.now();ch=true;}}
+  if(ch)saveDocs(docs);
+}
+// Purge locale des elements supprimes il y a plus de 30 jours
+function purgeTrash(){
+  const CUT=Date.now()-30*24*3600*1000;
+  const docs=getDocsRaw();const nd=docs.filter(d=>!(d.deleted&&d.deleted<CUT));
+  if(nd.length!==docs.length)localStorage.setItem('ltx_docs',JSON.stringify(nd));
+  const ps=getProjectsRaw();const np=ps.filter(p=>!(p.deleted&&p.deleted<CUT));
+  if(np.length!==ps.length)localStorage.setItem('ltx_projects',JSON.stringify(np));
+}
 function saveProjects(p){localStorage.setItem('ltx_projects',JSON.stringify(p))}
 function getProject(pid){return getProjects().find(p=>p.id===pid)}
 function updateProject(pid,fn){
@@ -997,10 +1026,8 @@ function updateProject(pid,fn){
   fn(ps[i]);ps[i].updatedAt=Date.now();saveProjects(ps);return ps[i];
 }
 function deleteProject(pid){
-  if(!confirm('Supprimer ce projet et tous ses fichiers ?'))return;
-  saveProjects(getProjects().filter(p=>p.id!==pid));
-  // Also delete attached tex docs
-  saveDocs(getDocs().filter(d=>d.projectId!==pid));
+  if(!confirm('Supprimer ce projet et tous ses fichiers ?\n(Recuperable 30 jours ; la suppression se propage sur tous tes postes.)'))return;
+  softDeleteProject(pid);
   if(currentId){const d=getDocs().find(x=>x.id===currentId);if(!d){
     const all=getDocs();if(all.length)openDoc(all[0].id,false);
   }}
@@ -2070,6 +2097,8 @@ function computeNeededFiles(files,mainPath){
 
 async function compile(){
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
+  // Reflexe Overleaf : on pousse tout de suite vers le cloud (sans attendre le delai).
+  try{ if(typeof cloudPushState==='function' && drvConnected()){ clearTimeout(_cloudPushTimer); cloudPushState().catch(function(){}); } }catch(e){}
   const btn=document.getElementById('btnc');
   const fr=document.getElementById('pdfframe');
   const pvph=document.getElementById('pvph');
@@ -2254,9 +2283,10 @@ function deleteDoc(id,e){
   e.stopPropagation();
   const docs=getDocs();
   if(docs.length===1){alert('Impossible de supprimer le dernier document.');return;}
-  if(!confirm('Supprimer ce document ?'))return;
-  const nd=docs.filter(d=>d.id!==id);saveDocs(nd);
-  if(currentId===id)openDoc(nd[0].id);
+  if(!confirm('Supprimer ce document ?\n(Recuperable 30 jours ; la suppression se propage sur tous tes postes.)'))return;
+  softDeleteDoc(id);
+  const nd=getDocs();
+  if(currentId===id&&nd.length)openDoc(nd[0].id);
   renderDocs();
 }
 
@@ -3330,9 +3360,8 @@ function renameProject(pid){
 }
 function deleteProjectHome(pid){
   const p=getProject(pid);if(!p)return;
-  if(!confirm('Supprimer le projet « '+p.name+' » et tous ses fichiers ?\nCette action est définitive.'))return;
-  saveProjects(getProjects().filter(x=>x.id!==pid));
-  saveDocs(getDocs().filter(d=>d.projectId!==pid));
+  if(!confirm('Supprimer le projet « '+p.name+' » et tous ses fichiers ?\n(Recuperable 30 jours ; la suppression se propage sur tous tes postes.)'))return;
+  softDeleteProject(pid);
   renderHome();
 }
 async function downloadProjectZip(pid){
@@ -3370,8 +3399,8 @@ function deleteProjectFile(id,e){
   const doc=getDocs().find(d=>d.id===id);if(!doc)return;
   const proj=getProject(doc.projectId);
   if(proj&&doc.projectPath===proj.mainPath){alert('Le fichier principal ne peut pas être supprimé.');return;}
-  if(!confirm('Supprimer « '+(doc.projectPath||doc.name)+' » ?'))return;
-  saveDocs(getDocs().filter(d=>d.id!==id));
+  if(!confirm('Supprimer « '+(doc.projectPath||doc.name)+' » ?\n(Recuperable 30 jours ; la suppression se propage sur tous tes postes.)'))return;
+  softDeleteDoc(id);
   if(currentId===id){
     const main=getDocs().find(d=>d.projectId===currentProject&&d.projectPath===proj.mainPath)||getDocs().find(d=>d.projectId===currentProject);
     if(main)openDoc(main.id,false);
@@ -3395,7 +3424,16 @@ let _stateFileId=null,_cloudPushTimer=null;
 function mergeById(local,cloud){
   const m={};
   for(const x of local||[])m[x.id]=x;
-  for(const x of cloud||[]){const ex=m[x.id];if(!ex||(x.updatedAt||0)>=(ex.updatedAt||0))m[x.id]=x;}
+  for(const x of cloud||[]){
+    const ex=m[x.id];
+    if(!ex){m[x.id]=x;continue;}
+    const tx=x.updatedAt||0, te=ex.updatedAt||0;
+    if(tx>te){m[x.id]=x;}
+    else if(tx===te){
+      // A egalite, une suppression l'emporte (propagation fiable des effacements).
+      if(x.deleted&&!ex.deleted)m[x.id]=x;
+    }
+  }
   return Object.values(m);
 }
 async function cloudFindStateFile(){
@@ -3414,8 +3452,8 @@ async function cloudPullState(){
 }
 async function cloudPushState(){
   if(!drvConnected())return false;
-  const state={_app:'LaTeX Studio',_version:1,_savedAt:new Date().toISOString(),
-    projects:getProjects(),docs:getDocs(),folders:getFolders(),collapsed:getCollapsed()};
+  const state={_app:'LaTeX Studio',_version:2,_savedAt:new Date().toISOString(),
+    projects:getProjectsRaw(),docs:getDocsRaw(),folders:getFolders(),collapsed:getCollapsed()};
   const json=JSON.stringify(state);
   if(!_stateFileId){const ex=await cloudFindStateFile();if(ex)_stateFileId=ex.id;}
   const boundary='ltxstate'+Math.random().toString(36).slice(2);
@@ -3440,10 +3478,13 @@ async function cloudPushState(){
 async function cloudLoadAndMerge(){
   const cloud=await cloudPullState();
   if(!cloud)return false;
-  _saveProjects0(mergeById(getProjects(),cloud.projects));
-  _saveDocs0(mergeById(getDocs(),cloud.docs));
+  // Fusion sur les listes COMPLETES (avec les elements en corbeille) pour que
+  // les suppressions se propagent : un tombstone recent l'emporte.
+  localStorage.setItem('ltx_projects',JSON.stringify(mergeById(getProjectsRaw(),cloud.projects)));
+  localStorage.setItem('ltx_docs',JSON.stringify(mergeById(getDocsRaw(),cloud.docs)));
   _saveFolders0(Array.from(new Set([...(getFolders()||[]),...(cloud.folders||[])])));
   if(cloud.collapsed)setCollapsed(Object.assign(getCollapsed(),cloud.collapsed));
+  purgeTrash();
   return true;
 }
 function scheduleCloudPush(){
@@ -3504,34 +3545,93 @@ window.addEventListener('load',()=>setTimeout(cloudBoot,150));
 </script>
 
 <script>
-// ===== Ctrl+F dans l'editeur + saut a la ligne d'erreur =====
-window.addEventListener('load',function(){
-  var tries=0;
-  (function bind(){
-    if(!window.cm){if(tries++<40)return setTimeout(bind,150);return;}
-    cm.setOption('extraKeys',Object.assign(cm.getOption('extraKeys')||{},{
-      'Ctrl-F':'findPersistent','Cmd-F':'findPersistent',
-      'Ctrl-G':'findNext','Cmd-G':'findNext',
-      'Shift-Ctrl-G':'findPrev','Shift-Cmd-G':'findPrev'
-    }));
-  })();
-  // Intercepte Ctrl+F AVANT le navigateur et le redirige vers l'editeur.
-  document.addEventListener('keydown',function(e){
-    if((e.ctrlKey||e.metaKey)&&(e.key==='f'||e.key==='F')){
-      if(!window.cm)return;
-      // Seulement si on n'est pas dans un autre champ de saisie
-      var t=e.target, tag=(t&&t.tagName)||'';
-      var inField=(tag==='INPUT'||tag==='TEXTAREA')&&!(t.classList&&t.classList.contains('CodeMirror'));
-      // La zone CodeMirror : on considere l'editeur actif si le doc n'est pas sur l'accueil
-      if(document.body.classList.contains('home'))return; // sur l'accueil, laisse le navigateur
-      if(inField)return;
-      e.preventDefault();
-      e.stopPropagation();
-      cm.focus();
-      cm.execCommand('findPersistent');
+// ===== Recherche maison dans l'editeur (autonome, sans dependance clavier) =====
+(function(){
+  var bar=null,input=null,count=null,cursor=null,lastQuery='';
+
+  function ensureBar(){
+    if(bar)return bar;
+    bar=document.createElement('div');
+    bar.id='findBar';
+    bar.style.cssText='position:absolute;top:34px;right:14px;z-index:60;display:none;align-items:center;gap:6px;background:#16213e;border:1px solid #2a3a5a;border-radius:8px;padding:6px 8px;box-shadow:0 6px 18px rgba(0,0,0,.4)';
+    bar.innerHTML='<input id="findInput" placeholder="Rechercher..." style="background:#0f0f1e;border:1px solid #3a3a5a;color:#e0e0e0;font-family:monospace;font-size:12.5px;padding:4px 8px;border-radius:5px;outline:none;width:180px">'+
+      '<span id="findCount" style="font-size:11px;color:#7a8aa0;font-family:monospace;min-width:38px;text-align:center">0/0</span>'+
+      '<button id="findPrev" title="Precedent (Maj+Entree)" style="background:#0f1a30;border:1px solid #2a3a5a;color:#90a8c8;border-radius:5px;cursor:pointer;padding:3px 8px;font-family:inherit">\u2191</button>'+
+      '<button id="findNext" title="Suivant (Entree)" style="background:#0f1a30;border:1px solid #2a3a5a;color:#90a8c8;border-radius:5px;cursor:pointer;padding:3px 8px;font-family:inherit">\u2193</button>'+
+      '<button id="findClose" title="Fermer (Echap)" style="background:none;border:none;color:#8a90b0;cursor:pointer;font-size:15px;padding:0 4px">\u2715</button>';
+    // On l'attache au panneau editeur pour un positionnement relatif propre
+    var host=document.getElementById('pane-ed')||document.body;
+    if(getComputedStyle(host).position==='static')host.style.position='relative';
+    host.appendChild(bar);
+    input=bar.querySelector('#findInput');
+    count=bar.querySelector('#findCount');
+    input.addEventListener('input',function(){runSearch(input.value,false);});
+    input.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();e.shiftKey?findStep(-1):findStep(1);}
+      else if(e.key==='Escape'){e.preventDefault();closeBar();}
+    });
+    bar.querySelector('#findNext').onclick=function(){findStep(1);};
+    bar.querySelector('#findPrev').onclick=function(){findStep(-1);};
+    bar.querySelector('#findClose').onclick=closeBar;
+    return bar;
+  }
+
+  function allMatches(q){
+    var res=[];
+    if(!q||!window.cm)return res;
+    var ql=q.toLowerCase();
+    for(var i=0;i<cm.lineCount();i++){
+      var line=cm.getLine(i).toLowerCase(),from=0,idx;
+      while((idx=line.indexOf(ql,from))!==-1){res.push({line:i,ch:idx});from=idx+Math.max(1,ql.length);}
     }
-  },true); // true = capture phase, passe avant le navigateur
-});
+    return res;
+  }
+  function runSearch(q,keepPos){
+    lastQuery=q;
+    var m=allMatches(q);
+    count.textContent=m.length?((cursor!=null&&cursor<m.length?cursor+1:1)+'/'+m.length):'0/0';
+    if(m.length){ if(!keepPos){cursor=0;} gotoMatch(m,cursor||0); }
+  }
+  function gotoMatch(m,i){
+    if(!m.length)return;
+    i=((i%m.length)+m.length)%m.length;cursor=i;
+    var pos=m[i];
+    cm.setSelection({line:pos.line,ch:pos.ch},{line:pos.line,ch:pos.ch+lastQuery.length});
+    cm.scrollIntoView({line:pos.line,ch:pos.ch},120);
+    count.textContent=(i+1)+'/'+m.length;
+  }
+  function findStep(dir){
+    var m=allMatches(lastQuery);
+    if(!m.length){count.textContent='0/0';return;}
+    if(cursor==null)cursor=0; else cursor+=dir;
+    gotoMatch(m,cursor);
+  }
+  function openBar(){
+    ensureBar();
+    bar.style.display='flex';
+    var sel=cm&&cm.getSelection&&cm.getSelection();
+    if(sel&&sel.length&&sel.length<40){input.value=sel;}
+    input.focus();input.select();
+    if(input.value)runSearch(input.value,false);
+  }
+  function closeBar(){ if(bar)bar.style.display='none'; if(window.cm)cm.focus(); }
+
+  // Expose global + raccourci
+  window.openEditorFind=openBar;
+  document.addEventListener('keydown',function(e){
+    var isF=(e.key==='f'||e.key==='F'||e.code==='KeyF'||e.keyCode===70);
+    if((e.ctrlKey||e.metaKey)&&!e.altKey&&isF){
+      if(document.body.classList.contains('home'))return; // accueil : Ctrl+F navigateur
+      var tag=(e.target&&e.target.tagName)||'';
+      if(tag==='INPUT'&&e.target.id!=='findInput')return;
+      e.preventDefault();e.stopPropagation();
+      openBar();
+    }
+    if(e.key==='Escape'&&bar&&bar.style.display!=='none'){closeBar();}
+  },true);
+})();
+
+// ===== Saut a la ligne d'erreur =====
 function jumpToLine(n){
   if(!window.cm||!n)return;
   var line=Math.max(0,parseInt(n,10)-1);
