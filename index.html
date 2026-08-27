@@ -496,7 +496,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.7</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v1.8</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div class="pal-wrap" style="display:inline-block;position:relative">
@@ -2313,8 +2313,43 @@ async function compile(){
         btn.disabled=false;
       }else{
         const log=await blob.text();
+        // Cas texlive.net : le log dit que le PDF a ete produit (Output written)
+        // mais aucun PDF n'est joint (souvent avec "Timeout/Error status: 1").
+        // On bascule alors AUTOMATIQUEMENT sur ytotech, qui gere mieux ce cas.
+        if(srv!=='ytotech' && /Output written on .*\.pdf/.test(log)){
+          try{
+            setStatus('spin','Nouvelle tentative via ytotech…');
+            const res3=await compileViaYtotech(bundle);
+            const blob3=await res3.blob();
+            const txt3=await blob3.text().catch(()=>'');
+            const pos3=txt3.indexOf('%PDF-');
+            if(res3.ok && pos3!==-1){
+              const buf3=await blob3.arrayBuffer();const by=new Uint8Array(buf3);
+              let bp=-1;for(let k=0;k<by.length-4;k++){if(by[k]===0x25&&by[k+1]===0x50&&by[k+2]===0x44&&by[k+3]===0x46&&by[k+4]===0x2d){bp=k;break;}}
+              const pb=(bp>0)?new Blob([buf3.slice(bp)],{type:'application/pdf'}):new Blob([buf3],{type:'application/pdf'});
+              pdfBlob=pb;
+              if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+              fr.style.display='block';
+              fr.src=URL.createObjectURL(pb);
+              setStatus('ok','Compilation terminée — ytotech (auto)');
+              document.getElementById('btnpdf').disabled=false;
+              document.getElementById('btnpdf2').disabled=false;
+              btn.disabled=false;
+              return;
+            }
+            // ytotech a echoue aussi : on montre le panneau a partir de son log.
+            let raw3=txt3; try{const j=JSON.parse(txt3);raw3=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||txt3;}catch(e){}
+            if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+            fr.style.display='none';
+            setStatus('err','Erreur de compilation');
+            showCompilePanel(String(raw3)||log);
+            btn.disabled=false;
+            return;
+          }catch(e3){
+            // ytotech injoignable : on retombe sur le log texlive.
+          }
+        }
         setStatus('err','Erreur de compilation');
-        // On coupe l'ecouteur iframe et on masque l'iframe : le panneau prend la main.
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
         fr.style.display='none';
         if(srv==='ytotech'){
