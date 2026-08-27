@@ -14,6 +14,14 @@ html,body{height:100%;overflow:hidden;font-family:system-ui,sans-serif;backgroun
 .logo{font-size:16px;font-weight:600;font-family:monospace;color:#e0e0e0;letter-spacing:-0.5px}
 .logo b{color:#4da6ff}
 #appVersion{font-size:10px;font-family:monospace;color:#5a6a8a;background:#0f0f1e;border:1px solid #2a3a5a;border-radius:10px;padding:1px 7px;margin-left:8px;vertical-align:middle}
+#topFind{display:inline-flex;align-items:center;gap:5px;background:#0f0f1e;border:1px solid #2a3a5a;border-radius:8px;padding:3px 6px 3px 9px;color:#7a8aa0}
+body.light #topFind{background:#f0f2f8;border-color:#d8d8e4;color:#8a90a0}
+#topFindInput{background:none;border:none;outline:none;color:#e0e0e0;font-family:inherit;font-size:12.5px;width:130px}
+body.light #topFindInput{color:#1a1a2e}
+#topFindCount{font-size:11px;font-family:monospace;color:#6a7a90;min-width:32px;text-align:center}
+#topFind button{background:none;border:none;color:#8a9ab0;cursor:pointer;font-size:13px;padding:1px 4px;border-radius:4px}
+#topFind button:hover{background:#20264a;color:#c0d0e8}
+body.home #topFind{display:none}
 body.light #appVersion{color:#8a90a0;background:#eef0f6;border-color:#d8d8e4}
 .tbr{display:flex;gap:5px;margin-left:auto;align-items:center}
 .tbr button{font-size:12px;padding:5px 11px;border:1px solid #3a3a5a;border-radius:6px;background:#1a1a2e;color:#c0c0d0;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
@@ -498,12 +506,16 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.24</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.25</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
-    <button onclick="if(window.openEditorFind)openEditorFind()" id="findBtn" title="Rechercher dans le document (Ctrl+F)" style="padding:5px 9px">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-    </button>
+    <div id="topFind" title="Rechercher dans le document">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="topFindInput" placeholder="Rechercher…" autocomplete="off" spellcheck="false">
+      <span id="topFindCount">0/0</span>
+      <button id="topFindPrev" title="Précédent (Maj+Entrée)">↑</button>
+      <button id="topFindNext" title="Suivant (Entrée)">↓</button>
+    </div>
     <div class="pal-wrap" style="display:inline-block;position:relative">
       <button onclick="togglePalettePop(event)" id="paletteBtn" title="Palette de couleurs" style="padding:5px 9px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
@@ -3667,7 +3679,7 @@ function renderProjectScoped(){
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
-    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
+    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><button onclick="scanAllImages()" title="Vérifier toutes les images (détecte les corrompues)" style="margin-left:2px">🔎</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
     <input type="file" id="imgImport" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp,.pdf" multiple style="display:none" onchange="importImagesToProject(this.files);this.value=''">
     ${renderNode(root,0)}`;
 }
@@ -3744,6 +3756,42 @@ function selectImportDir(path,e){
   const hint=document.getElementById('importHint');
   if(hint)hint.textContent=window._importTargetDir?('Cible : '+window._importTargetDir+'/'):'';
 }
+// Scanne toutes les images de tous les projets et liste les corrompues.
+async function scanAllImages(){
+  const projs=getProjects();
+  const bad=[]; let total=0;
+  for(const p of projs){
+    for(const [path,info] of Object.entries(p.files||{})){
+      if(info&&info.type==='binary'&&/\.(png|jpe?g|gif|webp)$/i.test(path)){
+        total++;
+        const ok=await validateImageB64(info.data,info.mime||mimeFor(path));
+        if(!ok)bad.push({project:p.name,projectId:p.id,path:path});
+      }
+    }
+  }
+  // Affichage dans le panneau apercu (reutilise le style d'erreur).
+  const pv=document.getElementById('pverr');
+  let h='<div class="errpanel">';
+  if(!bad.length){
+    h+='<div class="errtitle" style="color:#4ec07a">\u2713 '+total+' image(s) v\u00e9rifi\u00e9e(s) \u2014 aucune corrompue</div>';
+    h+='<div class="errsub">Tout est bon</div>';
+  }else{
+    h+='<div class="errtitle">\u26a0 '+bad.length+' image(s) corrompue(s) sur '+total+'</div>';
+    h+='<div class="errsub">\u00c0 remplacer (supprime puis r\u00e9importe depuis ton disque)</div>';
+    for(const b of bad){
+      h+='<div class="errcard errprimary erruser"><div class="errhead"><span class="errmsg">'+esc(b.path.split('/').pop())+'</span></div>'
+        +'<div class="errloc">Projet : '+esc(b.project)+' \u2014 '+esc(b.path)+'</div></div>';
+    }
+    h+='<div class="errhelp" style="margin-top:14px">Pour chacune : ouvre le projet, s\u00e9lectionne le dossier, supprime l\u2019image (croix rouge) puis r\u00e9importe l\u2019originale avec le bouton \ud83d\uddbc.</div>';
+  }
+  h+='</div>';
+  pv.innerHTML=h;
+  pv.classList.add('show');
+  const fr=document.getElementById('pdfframe'); if(fr)fr.style.display='none';
+  const ph=document.getElementById('pvph'); if(ph)ph.style.display='none';
+  setStatus(bad.length?'err':'ok', bad.length?(bad.length+' image(s) corrompue(s)'):'Images OK');
+}
+
 async function importImagesToProject(files){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
   if(!files||!files.length)return;
@@ -4135,6 +4183,44 @@ window.addEventListener('load',()=>setTimeout(cloudBoot,150));
 
   // Expose global + raccourci
   window.openEditorFind=openBar;
+
+  // ---- Champ de recherche PERMANENT dans le bandeau du haut ----
+  function bindTopFind(){
+    var inp=document.getElementById('topFindInput');
+    if(!inp)return;
+    var cnt=document.getElementById('topFindCount');
+    var _tf_cursor=null, _tf_q='';
+    function tfMatches(q){
+      var res=[]; if(!q||!window.cm)return res;
+      var hay=cm.getValue().toLowerCase(), ql=q.toLowerCase(), from=0, idx;
+      while((idx=hay.indexOf(ql,from))!==-1){res.push(cm.posFromIndex(idx));from=idx+Math.max(1,ql.length);}
+      return res;
+    }
+    function tfGo(i){
+      var m=tfMatches(_tf_q);
+      if(!m.length){cnt.textContent='0/0';return;}
+      i=((i%m.length)+m.length)%m.length; _tf_cursor=i;
+      var p=m[i];
+      cm.setSelection({line:p.line,ch:p.ch},{line:p.line,ch:p.ch+_tf_q.length});
+      cm.scrollIntoView({line:p.line,ch:p.ch},120);
+      cnt.textContent=(i+1)+'/'+m.length;
+    }
+    inp.addEventListener('input',function(){
+      _tf_q=inp.value; _tf_cursor=null;
+      var m=tfMatches(_tf_q);
+      cnt.textContent=m.length?('1/'+m.length):(_tf_q?'0/0':'0/0');
+      if(m.length){_tf_cursor=0;tfGo(0);}
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){e.preventDefault();tfGo((_tf_cursor==null?0:_tf_cursor)+(e.shiftKey?-1:1));}
+      else if(e.key==='Escape'){inp.blur();if(window.cm)cm.focus();}
+    });
+    document.getElementById('topFindNext').onclick=function(){tfGo((_tf_cursor==null?0:_tf_cursor)+1);};
+    document.getElementById('topFindPrev').onclick=function(){tfGo((_tf_cursor==null?0:_tf_cursor)-1);};
+  }
+  bindTopFind();
+  // Ctrl+F place le focus dans ce champ permanent (au lieu d'ouvrir la barre flottante).
+  window.openEditorFind=function(){var i=document.getElementById('topFindInput');if(i){i.focus();i.select();}else openBar();};
   document.addEventListener('keydown',function(e){
     var isF=(e.key==='f'||e.key==='F'||e.code==='KeyF'||e.keyCode===70);
     if((e.ctrlKey||e.metaKey)&&!e.altKey&&isF){
