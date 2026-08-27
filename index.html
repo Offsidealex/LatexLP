@@ -498,7 +498,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.22</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.23</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div class="pal-wrap" style="display:inline-block;position:relative">
@@ -1377,6 +1377,7 @@ window.addEventListener('load',()=>{
       'Cmd-S':(e)=>{e.preventDefault();openSaveModal()}
     }
   });
+  window.cm=cm; // exposer l'editeur pour les modules (recherche, saut de ligne)
   setTimeout(resize, 50);
   initSplitter();
   initSidebarResizer();
@@ -3658,7 +3659,8 @@ function renderProjectScoped(){
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
-    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button></div>
+    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image (png, jpg, pdf)" style="margin-left:2px">🖼</button></div>
+    <input type="file" id="imgImport" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp,.pdf" multiple style="display:none" onchange="importImagesToProject(this.files);this.value=''">
     ${renderNode(root,0)}`;
 }
 
@@ -3725,6 +3727,37 @@ async function downloadProjectZip(pid){
 }
 
 // ---- Fichiers dans un projet ----
+async function importImagesToProject(files){
+  if(!currentProject){alert("Ouvre un projet d'abord.");return;}
+  if(!files||!files.length)return;
+  const proj=getProject(currentProject);if(!proj)return;
+  let done=0, bad=[];
+  for(const file of files){
+    try{
+      const b64=await new Promise(function(res,rej){
+        const r=new FileReader();
+        r.onload=function(){res((r.result||'').toString().split(',')[1]||'');};
+        r.onerror=function(){rej(new Error('lecture'));};
+        r.readAsDataURL(file);
+      });
+      // Verifier que l'image est decodable (sauf pdf)
+      if(/\.(png|jpe?g|gif|webp)$/i.test(file.name)){
+        const ok=await validateImageB64(b64,file.type||'image/png');
+        if(!ok){bad.push(file.name+' (illisible / corrompue)');continue;}
+      }
+      // Placer dans images/<nom> par defaut (c'est la convention du projet).
+      let path='images/'+file.name;
+      updateProject(currentProject,function(p){ if(!p.files)p.files={}; p.files[path]={type:'binary',data:b64,mime:file.type||mimeFor(path)}; });
+      done++;
+    }catch(e){ bad.push(file.name+' (erreur)'); }
+  }
+  cloudFlushNow();
+  renderDocs();
+  let msg='Import terminé : '+done+' image(s) ajoutée(s) dans images/.';
+  if(bad.length)msg+='\n\nNon importées :\n- '+bad.join('\n- ');
+  alert(msg);
+}
+
 function addProjectFile(){
   if(!currentProject)return;
   let fn=prompt('Nom du nouveau fichier (ex : chap2.tex) :','nouveau.tex');
