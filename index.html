@@ -2278,12 +2278,22 @@ async function compile(){
         res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
       }
       clearTimeout(timeout);
-      const blob=await res.blob();
-      const head=await blob.slice(0,5).text().catch(()=>'');
+      let blob=await res.blob();
       const ct=res.headers.get('content-type')||'';
-      if((res.ok&&ct.includes('pdf'))||head==='%PDF-'){
+      // texlive.net peut renvoyer le PDF precede de quelques lignes de log.
+      // On cherche la signature %PDF dans les premiers 4 Ko pour ne pas rater un PDF valide.
+      const sniff=await blob.slice(0,4096).text().catch(()=>'');
+      const pdfPos=sniff.indexOf('%PDF-');
+      const looksPdf=(res.ok&&ct.includes('pdf'))||pdfPos!==-1;
+      if(looksPdf){
+        // Si le PDF est precede de texte, on recoupe le blob a partir de %PDF-.
+        if(pdfPos>0){
+          const buf=await blob.arrayBuffer();
+          blob=new Blob([buf.slice(pdfPos)],{type:'application/pdf'});
+        }
         pdfBlob=blob;
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+        fr.style.display='block';
         fr.src=URL.createObjectURL(blob);
         setStatus('ok','Compilation terminée — '+srvLabel);
         document.getElementById('btnpdf').disabled=false;
