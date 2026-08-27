@@ -1006,6 +1006,7 @@ function softDeleteDoc(id){
   if(i===-1)return;
   docs[i].deleted=Date.now();docs[i].updatedAt=Date.now();
   saveDocs(docs);
+  cloudFlushNow();
 }
 function softDeleteProject(pid){
   // marque le projet ET tous ses docs comme supprimes
@@ -1014,6 +1015,17 @@ function softDeleteProject(pid){
   const docs=getDocsRaw();let ch=false;
   for(const d of docs){if(d.projectId===pid&&!d.deleted){d.deleted=Date.now();d.updatedAt=Date.now();ch=true;}}
   if(ch)saveDocs(docs);
+  cloudFlushNow();
+}
+// Pousse l'etat vers le Drive IMMEDIATEMENT (sans attendre le delai).
+// Utilise apres une suppression pour que la propagation ne soit jamais perdue.
+function cloudFlushNow(){
+  try{
+    if(typeof _cloudPushTimer!=='undefined')clearTimeout(_cloudPushTimer);
+    if(typeof cloudPushState==='function' && typeof drvConnected==='function' && drvConnected()){
+      cloudPushState().catch(function(){});
+    }
+  }catch(e){}
 }
 // Purge locale des elements supprimes il y a plus de 30 jours
 function purgeTrash(){
@@ -3407,6 +3419,7 @@ function deleteProjectAsset(path,e){
   const base=path.split('/').pop();
   if(!confirm('Supprimer le fichier joint « '+base+' » ?\n(La suppression se propage sur tous tes postes.)'))return;
   updateProject(currentProject,p=>{ if(p.files)delete p.files[path]; });
+  cloudFlushNow();
   renderDocs();
 }
 
