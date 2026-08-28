@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.28</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.30</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -1163,6 +1163,7 @@ function getProjectAllFiles(projectId){
   }
   // Attachments
   for(const [path,info] of Object.entries(proj.files||{})){
+    if(info&&info.keep)continue; // marqueur de dossier : jamais envoye a la compilation
     if(info.type==='text')out.push({path,kind:'text',content:info.content||''});
     else out.push({path,kind:'binary',data:info.data,mime:info.mime||mimeFor(path)});
   }
@@ -2203,11 +2204,23 @@ function buildFormData(files,mainPath){
 // l'utilisateur (document.tex) ou d'un package systeme (/usr/local/texlive...),
 // et recupere un numero de ligne quand il est rattache au fichier utilisateur.
 function parseTexErrorsAll(log){
-  // Cas ytotech : reponse JSON courte {"error":"SERVER_ERROR"} -> message clair.
-  if(/^\s*\{?\s*"?error"?\s*:?\s*"?SERVER_ERROR/i.test(log||'')||/SERVER_ERROR/.test(log||'')){
-    return [{msg:'Le serveur a rejete la compilation (SERVER_ERROR)',line:null,file:'',isUser:true,
+  // Cas ytotech : reponse JSON. On essaie d'abord d'extraire un vrai log LaTeX,
+  // meme quand il y a un "error", car le detail est souvent dans .logs.
+  var _rawJson=null;
+  try{ _rawJson=JSON.parse(log); }catch(e){}
+  if(_rawJson){
+    var deepLog = _rawJson.logs || _rawJson.log || (_rawJson.result&&(_rawJson.result.log||_rawJson.result.buildLog)) || _rawJson.output || _rawJson.stderr || _rawJson.stdout;
+    if(typeof deepLog==='string' && deepLog.length>20){
+      // On a un vrai log : on le parse comme un log LaTeX normal (recursion sur le texte).
+      var cleaned=deepLog.replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\\t/g,'\t');
+      log=cleaned; _rawJson=null; // on continue le parsing normal ci-dessous
+    }
+  }
+  // Cas ou il ne reste vraiment qu'un SERVER_ERROR sans detail.
+  if(_rawJson && /error/i.test(log) && /SERVER_ERROR/i.test(log)){
+    return [{msg:'Le serveur ytotech a rejete la compilation (SERVER_ERROR)',line:null,file:'',isUser:true,
       hint:'server', ctx:log,
-      help:'Cause frequente : une image corrompue ou trop lourde dans le projet, ou un package non disponible. Verifie/supprime les images douteuses (ex. un PNG qui a deja pose probleme), puis reessaie. Tu peux aussi tenter l\'autre serveur.'}];
+      help:'ytotech renvoie une erreur sans detail. Causes possibles : un package non disponible (ex. fouriernc, tkz-tab), une commande qui plante, ou une image. Essaie de compiler le meme document sur texlive.net (menu deroulant) pour obtenir le log detaille avec la ligne exacte.'}];
   }
   const lines=(log||'').split(/\r?\n/);
   const errors=[];
@@ -3721,7 +3734,14 @@ function renderProjectScoped(){
     node.files.push(Object.assign({name:parts[parts.length-1]},payload));
   }
   for(const d of docs)addPath(d.projectPath||d.name,{kind:'tex',doc:d});
-  for(const [path,info] of Object.entries(proj.files||{}))addPath(path,{kind:'asset',info,fullpath:path});
+  for(const [path,info] of Object.entries(proj.files||{})){
+    if(info&&info.keep){ // marqueur de dossier : on cree juste le dossier, pas le fichier
+      const parts=path.split('/'); parts.pop();
+      let node=root; for(const seg of parts){ if(!node.folders[seg])node.folders[seg]={folders:{},files:[]}; node=node.folders[seg]; }
+      continue;
+    }
+    addPath(path,{kind:'asset',info,fullpath:path});
+  }
   function renderNode(node,depth){
     let h='';
     for(const fn of Object.keys(node.folders).sort()){
@@ -3758,7 +3778,7 @@ function renderProjectScoped(){
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
-    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><button onclick="scanAllImages()" title="Vérifier toutes les images (détecte les corrompues)" style="margin-left:2px">🔎</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
+    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="createProjectFolder()" title="Créer un dossier" style="margin-left:2px">📁</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><button onclick="scanAllImages()" title="Vérifier toutes les images (détecte les corrompues)" style="margin-left:2px">🔎</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
     <input type="file" id="imgImport" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp,.pdf" multiple style="display:none" onchange="importImagesToProject(this.files);this.value=''">
     ${renderNode(root,0)}`;
 }
@@ -3869,6 +3889,25 @@ async function scanAllImages(){
   const fr=document.getElementById('pdfframe'); if(fr)fr.style.display='none';
   const ph=document.getElementById('pvph'); if(ph)ph.style.display='none';
   setStatus(bad.length?'err':'ok', bad.length?(bad.length+' image(s) corrompue(s)'):'Images OK');
+}
+
+function createProjectFolder(){
+  if(!currentProject){alert("Ouvre un projet d'abord.");return;}
+  let name=prompt('Nom du nouveau dossier :', window._importTargetDir?(window._importTargetDir+'/nouveau'):'images');
+  if(name===null)return;
+  name=name.trim().replace(/^\/+|\/+$/g,'');
+  if(!name){return;}
+  // On materialise le dossier par un fichier-marqueur .keep (garde le dossier visible
+  // meme vide). Le .keep n'est pas envoye a la compilation (extension inconnue ignoree).
+  const keepPath=name+'/.keep';
+  const proj=getProject(currentProject);
+  if(proj&&proj.files&&keepPath in proj.files){alert('Ce dossier existe deja.');return;}
+  updateProject(currentProject,function(p){ if(!p.files)p.files={}; p.files[keepPath]={type:'binary',data:'',mime:'application/octet-stream',keep:true}; });
+  window._importTargetDir=name;
+  cloudFlushNow();
+  renderDocs();
+  const hint=document.getElementById('importHint');
+  if(hint)hint.textContent='Cible : '+name+'/';
 }
 
 async function importImagesToProject(files){
