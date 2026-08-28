@@ -516,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.36</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.37</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -2447,20 +2447,17 @@ function computeNeededFiles(files,mainPath){
 }
 
 
-// ==================== Synchronisation PDF -> source (v0.36) ====================
-// Les serveurs distants renvoient un PDF, mais pas le fichier SyncTeX. On utilise
-// donc PDF.js et une correspondance robuste entre le texte visible du PDF et les
-// lignes du source. Ce n'est pas un SyncTeX natif, mais le double-clic fonctionne
-// comme dans un éditeur LaTeX pour les zones textuelles et reste sans modification
-// du fichier utilisateur.
+// ==================== Synchronisation PDF -> source (v0.37) ====================
+// Synchronisation PDF -> source sans dépendre du textLayer officiel de PDF.js.
+// Les serveurs distants ne fournissent pas SyncTeX ; on construit donc une
+// couche de zones de texte directement à partir de getTextContent().
 function syncNorm(s){
-  return String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
     .replace(/https?:\/\/\S+/g,' ')
     .replace(/[^a-z0-9à-ÿ]+/gi,' ').replace(/\s+/g,' ').trim();
 }
 function stripLatexForSync(line){
   let x=String(line||'').replace(/%.*$/,'');
-  x=x.replace(/\\\\(?:[a-zA-Z@]+|.)/g,' '); // commandes + commandes à un caractère
   x=x.replace(/\\(?:begin|end|documentclass|usepackage|newcommand|renewcommand|title|author|date|label|ref|pageref|cite|includegraphics|input|include)\s*(?:\[[^\]]*\])?\s*\{[^}]*\}/g,' ');
   x=x.replace(/\\[a-zA-Z@]+\*?/g,' ');
   x=x.replace(/[{}$\[\]]/g,' ');
@@ -2475,11 +2472,12 @@ function buildSyncIndex(bundle){
     for(let i=0;i<lines.length;i++){
       const clean=stripLatexForSync(lines[i]);
       if(!clean)continue;
-      const entry={file:f.path,line:i+1,text:clean,tokens:new Set(clean.split(' ').filter(t=>t.length>=2))};
+      const tokens=new Set(clean.split(' ').filter(t=>t.length>=2));
+      const entry={file:f.path,line:i+1,text:clean,tokens};
       const n=idx.push(entry)-1;
-      for(const t of entry.tokens){
+      for(const t of tokens){
         if(!tokenMap.has(t))tokenMap.set(t,[]);
-        const a=tokenMap.get(t); if(a.length<80)a.push(n);
+        const a=tokenMap.get(t); if(a.length<100)a.push(n);
       }
     }
   }
@@ -2489,8 +2487,9 @@ function bestSourceForPdfText(text){
   if(!syncIndex)return null;
   const n=syncNorm(text); if(!n)return null;
   const toks=[...new Set(n.split(' ').filter(t=>t.length>=2))];
+  if(!toks.length)return null;
   const candidates=new Set();
-  for(const t of toks){const a=syncIndex.tokenMap.get(t)||[];for(const i of a)candidates.add(i);}
+  for(const t of toks){for(const i of (syncIndex.tokenMap.get(t)||[]))candidates.add(i);}
   if(!candidates.size)return null;
   let best=null,bestScore=0;
   for(const i of candidates){
@@ -2498,29 +2497,60 @@ function bestSourceForPdfText(text){
     for(const t of toks)if(e.tokens.has(t))hit++;
     const coverage=hit/Math.max(1,toks.length);
     const lineCoverage=hit/Math.max(1,e.tokens.size);
-    const exact=(e.text===n)?5:0;
+    const exact=e.text===n?6:0;
     const score=exact+coverage*4+lineCoverage*2;
     if(score>bestScore){bestScore=score;best=e;}
   }
-  return bestScore>=1.5?best:null;
+  return bestScore>=1.35?best:null;
 }
 function findProjectDoc(path){
   const docs=getDocs();
   let d=docs.find(x=>x.projectId===currentProject && (x.projectPath===path || x.name===path));
   if(d)return d;
   const base=String(path||'').split('/').pop();
-  return docs.find(x=>x.projectId===currentProject && (x.projectPath||x.name).split('/').pop()===base) || null;
+  return docs.find(x=>x.projectId===currentProject && (x.projectPath||x.name).split('/').pop()===base)||null;
 }
 function jumpToSource(file,line){
   if(!file||!line)return;
   let target=getDocs().find(d=>d.id===currentId && ((d.projectPath||d.name)===file));
-  if(!target && currentProject)target=findProjectDoc(file);
-  if(target && target.id!==currentId){openDoc(target.id);}
-  if(target){
-    setTimeout(()=>{try{cm.setCursor({line:Math.max(0,line-1),ch:0});cm.scrollIntoView({line:Math.max(0,line-1),ch:0},120);cm.focus();}catch(e){}},20);
+  if(!target&&currentProject)target=findProjectDoc(file);
+  const pos={line:Math.max(0,Number(line)-1),ch:0};
+  if(target&&target.id!==currentId){
+    openDoc(target.id);
+    setTimeout(()=>{try{cm.setCursor(pos);cm.scrollIntoView(pos,180);cm.focus();}catch(e){}},120);
   }else if(cm){
-    try{cm.setCursor({line:Math.max(0,line-1),ch:0});cm.scrollIntoView({line:Math.max(0,line-1),ch:0},120);cm.focus();}catch(e){}
+    try{cm.setCursor(pos);cm.scrollIntoView(pos,180);cm.focus();}catch(e){}
   }
+}
+function makeSyncTextHit(page,item,hit,viewport,index){
+  if(!hit||!item||!item.str)return null;
+  const tx=pdfjsLib.Util.transform(viewport.transform,item.transform);
+  const angle=Math.atan2(tx[1],tx[0]);
+  const fontHeight=Math.max(5,Math.hypot(tx[2],tx[3]));
+  const width=Math.max(2,Math.abs(item.width*viewport.scale));
+  const span=document.createElement('span');
+  span.textContent=item.str;
+  span.dataset.syncFile=hit.file;
+  span.dataset.syncLine=String(hit.line);
+  span.dataset.syncIndex=String(index);
+  span.title=hit.file+':'+hit.line;
+  span.style.position='absolute';
+  span.style.left=tx[4]+'px';
+  span.style.top=(tx[5]-fontHeight)+'px';
+  span.style.width=width+'px';
+  span.style.height=Math.max(fontHeight*1.15,10)+'px';
+  span.style.fontSize=fontHeight+'px';
+  span.style.lineHeight='1';
+  span.style.transformOrigin='0 0';
+  span.style.transform='rotate('+angle+'rad)';
+  span.style.color='transparent';
+  span.style.background='transparent';
+  span.style.cursor='pointer';
+  span.style.pointerEvents='auto';
+  span.style.zIndex='3';
+  span.style.userSelect='none';
+  page.appendChild(span);
+  return span;
 }
 async function renderPdfViewer(blob,bundle){
   const viewer=document.getElementById('pdfviewer');
@@ -2528,13 +2558,11 @@ async function renderPdfViewer(blob,bundle){
   if(!viewer||!window.pdfjsLib){
     fr.style.display='block'; fr.src=URL.createObjectURL(blob); return;
   }
-
   buildSyncIndex(bundle); syncRenderToken++; const token=syncRenderToken;
   viewer.innerHTML='<div class="syncHint">Double-cliquez dans le PDF pour aller à la ligne correspondante du source</div>';
   viewer.style.display='block'; fr.style.display='none';
   const data=new Uint8Array(await blob.arrayBuffer());
   const pdf=await pdfjsLib.getDocument({data}).promise; syncPdf=pdf;
-
   for(let pageNum=1;pageNum<=pdf.numPages;pageNum++){
     if(token!==syncRenderToken)return;
     const page=await pdf.getPage(pageNum);
@@ -2542,84 +2570,49 @@ async function renderPdfViewer(blob,bundle){
     const wrap=document.createElement('div');
     wrap.className='pdfpage'; wrap.dataset.page=pageNum;
     wrap.style.width=viewport.width+'px'; wrap.style.height=viewport.height+'px';
-
+    wrap.style.position='relative';
     const canvas=document.createElement('canvas');
     canvas.width=Math.ceil(viewport.width); canvas.height=Math.ceil(viewport.height);
     canvas.style.width=viewport.width+'px'; canvas.style.height=viewport.height+'px';
     canvas.style.position='absolute'; canvas.style.left='0'; canvas.style.top='0'; canvas.style.zIndex='1';
     wrap.appendChild(canvas);
-
-    const layer=document.createElement('div');
-    layer.className='textLayer'; layer.style.width=viewport.width+'px'; layer.style.height=viewport.height+'px';
-    layer.style.zIndex='2'; layer.style.pointerEvents='auto';
-    wrap.appendChild(layer); viewer.appendChild(wrap);
-
+    const hitLayer=document.createElement('div');
+    hitLayer.className='textLayer';
+    hitLayer.style.position='absolute'; hitLayer.style.inset='0';
+    hitLayer.style.width=viewport.width+'px'; hitLayer.style.height=viewport.height+'px';
+    hitLayer.style.zIndex='2'; hitLayer.style.pointerEvents='auto';
+    wrap.appendChild(hitLayer); viewer.appendChild(wrap);
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
-    const tc=await page.getTextContent();
-    const divs=[];
-
-    if(typeof pdfjsLib.renderTextLayer==='function'){
-      const task=pdfjsLib.renderTextLayer({
-        textContent:tc,
-        textContentSource:tc,
-        container:layer,
-        viewport,
-        textDivs:divs
-      });
-      if(task && task.promise) await task.promise;
-    }else if(typeof pdfjsLib.TextLayer==='function'){
-      const tl=new pdfjsLib.TextLayer({textContentSource:tc,container:layer,viewport});
-      await tl.render();
-      if(Array.isArray(tl.textDivs)) divs.push(...tl.textDivs);
-    }
-
-    // PDF.js peut produire des divs (versions récentes) ou des spans (anciennes).
-    // On récupère les éléments réellement créés plutôt que de supposer leur type.
-    const textEls=[...layer.querySelectorAll('span,div')].filter(el=>el!==layer && (el.textContent||'').trim());
-    const els=divs.length?divs:textEls;
+    const tc=await page.getTextContent({includeMarkedContent:false});
     const items=tc.items||[];
     for(let i=0;i<items.length;i++){
       const item=items[i];
-      const el=els[i];
-      if(!el || !item || !item.str) continue;
+      if(!item||!item.str||!item.str.trim())continue;
       const hit=bestSourceForPdfText(item.str);
-      if(hit){
-        el.dataset.syncFile=hit.file;
-        el.dataset.syncLine=String(hit.line);
-        el.dataset.syncText=item.str;
-        el.title=hit.file+':'+hit.line;
-      }
+      if(hit)makeSyncTextHit(hitLayer,item,hit,viewport,i);
     }
+    hitLayer.addEventListener('dblclick',ev=>{
+      ev.preventDefault(); ev.stopPropagation();
+      const el=ev.target.closest('[data-sync-line]');
+      if(el){jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));}
+      else findNearestSyncHit(hitLayer,ev.clientX,ev.clientY);
+    },true);
+    wrap.addEventListener('dblclick',ev=>{
+      if(ev.target===canvas||ev.target===wrap)findNearestSyncHit(hitLayer,ev.clientX,ev.clientY);
+    },true);
   }
-
-  // Double-clic : on écoute directement le conteneur PDF. Cela fonctionne même
-  // si le double-clic tombe sur le canvas, la couche de texte ou une zone blanche.
-  viewer.ondblclick=function(ev){
-    const page=ev.target.closest?.('.pdfpage');
-    if(!page)return;
-
-    let el=ev.target;
-    while(el && el!==page && !el.dataset?.syncLine) el=el.parentElement;
-    if(el && el.dataset?.syncLine){
-      jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));
-      return;
-    }
-
-    // Si on a cliqué dans une zone sans élément de texte (marge, formule, etc.),
-    // choisir l'élément textuel le plus proche du point de clic.
-    const els=[...page.querySelectorAll('.textLayer [data-sync-line]')];
-    let best=null,bestD=Infinity;
-    for(const sp of els){
-      const r=sp.getBoundingClientRect();
-      const cx=Math.max(r.left,Math.min(ev.clientX,r.right));
-      const cy=Math.max(r.top,Math.min(ev.clientY,r.bottom));
-      const d=(cx-ev.clientX)**2+(cy-ev.clientY)**2;
-      if(d<bestD){bestD=d;best=sp;}
-    }
-    if(best && bestD<180000){
-      jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
-    }
-  };
+}
+function findNearestSyncHit(layer,cx,cy){
+  const els=[...layer.querySelectorAll('[data-sync-line]')];
+  let best=null,bestD=Infinity;
+  for(const el of els){
+    const r=el.getBoundingClientRect();
+    const x=Math.max(r.left,Math.min(cx,r.right));
+    const y=Math.max(r.top,Math.min(cy,r.bottom));
+    const d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
+    if(d<bestD){bestD=d;best=el;}
+  }
+  if(best&&bestD<250000)jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
 }
 
 function isOpaqueYtotechError(log){
