@@ -212,9 +212,9 @@ body.light .pal-check{color:#1a5a99}
 #pdfviewer{position:absolute;inset:0;overflow:auto;background:#525659;display:none;padding:22px 0 40px;}
 #pdfviewer .pdfpage{position:relative;margin:0 auto 18px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);}
 #pdfviewer canvas{display:block;}
-#pdfviewer .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1.0;opacity:1;}
-#pdfviewer .textLayer span,#pdfviewer .textLayer br{color:transparent;position:absolute;white-space:pre;transform-origin:0% 0%;cursor:text;}
-#pdfviewer .textLayer span:hover{background:rgba(77,166,255,.12);}
+#pdfviewer .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1.0;opacity:1;z-index:2;pointer-events:auto;}
+#pdfviewer .textLayer span,#pdfviewer .textLayer div,#pdfviewer .textLayer br{color:transparent;position:absolute;white-space:pre;transform-origin:0% 0%;cursor:pointer;pointer-events:auto;}
+#pdfviewer .textLayer span:hover,#pdfviewer .textLayer div:hover{background:rgba(77,166,255,.12);}
 #pdfviewer .syncHint{position:sticky;top:8px;z-index:20;width:max-content;max-width:90%;margin:0 auto 12px;padding:6px 10px;border-radius:6px;background:rgba(20,25,35,.82);color:#dcecff;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;}
 body.light #pdfviewer{background:#dfe3e8;}
 body.light #pdfviewer .syncHint{background:rgba(255,255,255,.92);color:#33445a;}
@@ -516,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.35</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.36</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -2447,7 +2447,7 @@ function computeNeededFiles(files,mainPath){
 }
 
 
-// ==================== Synchronisation PDF -> source (v0.35) ====================
+// ==================== Synchronisation PDF -> source (v0.36) ====================
 // Les serveurs distants renvoient un PDF, mais pas le fichier SyncTeX. On utilise
 // donc PDF.js et une correspondance robuste entre le texte visible du PDF et les
 // lignes du source. Ce n'est pas un SyncTeX natif, mais le double-clic fonctionne
@@ -2525,52 +2525,100 @@ function jumpToSource(file,line){
 async function renderPdfViewer(blob,bundle){
   const viewer=document.getElementById('pdfviewer');
   const fr=document.getElementById('pdfframe');
-  if(!viewer||!window.pdfjsLib){ fr.style.display='block'; fr.src=URL.createObjectURL(blob); return; }
+  if(!viewer||!window.pdfjsLib){
+    fr.style.display='block'; fr.src=URL.createObjectURL(blob); return;
+  }
+
   buildSyncIndex(bundle); syncRenderToken++; const token=syncRenderToken;
   viewer.innerHTML='<div class="syncHint">Double-cliquez dans le PDF pour aller à la ligne correspondante du source</div>';
   viewer.style.display='block'; fr.style.display='none';
   const data=new Uint8Array(await blob.arrayBuffer());
   const pdf=await pdfjsLib.getDocument({data}).promise; syncPdf=pdf;
+
   for(let pageNum=1;pageNum<=pdf.numPages;pageNum++){
     if(token!==syncRenderToken)return;
     const page=await pdf.getPage(pageNum);
-    const base=1.35;
-    const viewport=page.getViewport({scale:base});
-    const wrap=document.createElement('div');wrap.className='pdfpage';wrap.dataset.page=pageNum;wrap.style.width=viewport.width+'px';wrap.style.height=viewport.height+'px';
-    const canvas=document.createElement('canvas'); canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height); canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';
+    const viewport=page.getViewport({scale:1.35});
+    const wrap=document.createElement('div');
+    wrap.className='pdfpage'; wrap.dataset.page=pageNum;
+    wrap.style.width=viewport.width+'px'; wrap.style.height=viewport.height+'px';
+
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.ceil(viewport.width); canvas.height=Math.ceil(viewport.height);
+    canvas.style.width=viewport.width+'px'; canvas.style.height=viewport.height+'px';
+    canvas.style.position='absolute'; canvas.style.left='0'; canvas.style.top='0'; canvas.style.zIndex='1';
     wrap.appendChild(canvas);
-    const layer=document.createElement('div');layer.className='textLayer';layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';
-    wrap.appendChild(layer);viewer.appendChild(wrap);
+
+    const layer=document.createElement('div');
+    layer.className='textLayer'; layer.style.width=viewport.width+'px'; layer.style.height=viewport.height+'px';
+    layer.style.zIndex='2'; layer.style.pointerEvents='auto';
+    wrap.appendChild(layer); viewer.appendChild(wrap);
+
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
     const tc=await page.getTextContent();
     const divs=[];
-    if(pdfjsLib.renderTextLayer){
-      await pdfjsLib.renderTextLayer({textContent:tc,container:layer,viewport,textDivs:divs}).promise;
+
+    if(typeof pdfjsLib.renderTextLayer==='function'){
+      const task=pdfjsLib.renderTextLayer({
+        textContent:tc,
+        textContentSource:tc,
+        container:layer,
+        viewport,
+        textDivs:divs
+      });
+      if(task && task.promise) await task.promise;
+    }else if(typeof pdfjsLib.TextLayer==='function'){
+      const tl=new pdfjsLib.TextLayer({textContentSource:tc,container:layer,viewport});
+      await tl.render();
+      if(Array.isArray(tl.textDivs)) divs.push(...tl.textDivs);
     }
+
+    // PDF.js peut produire des divs (versions récentes) ou des spans (anciennes).
+    // On récupère les éléments réellement créés plutôt que de supposer leur type.
+    const textEls=[...layer.querySelectorAll('span,div')].filter(el=>el!==layer && (el.textContent||'').trim());
+    const els=divs.length?divs:textEls;
     const items=tc.items||[];
     for(let i=0;i<items.length;i++){
-      const item=items[i]; const div=divs[i]; if(!div||!item.str)continue;
+      const item=items[i];
+      const el=els[i];
+      if(!el || !item || !item.str) continue;
       const hit=bestSourceForPdfText(item.str);
-      if(hit){div.dataset.syncFile=hit.file;div.dataset.syncLine=hit.line;div.title=hit.file+':'+hit.line;}
+      if(hit){
+        el.dataset.syncFile=hit.file;
+        el.dataset.syncLine=String(hit.line);
+        el.dataset.syncText=item.str;
+        el.title=hit.file+':'+hit.line;
+      }
     }
   }
+
+  // Double-clic : on écoute directement le conteneur PDF. Cela fonctionne même
+  // si le double-clic tombe sur le canvas, la couche de texte ou une zone blanche.
   viewer.ondblclick=function(ev){
+    const page=ev.target.closest?.('.pdfpage');
+    if(!page)return;
+
     let el=ev.target;
-    while(el&&el!==viewer && !el.dataset?.syncLine)el=el.parentElement;
-    if(el&&el.dataset.syncLine){jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));return;}
-    // Si le double-clic tombe dans une zone blanche (marge, formule, etc.),
-    // prendre le texte visible le plus proche sur la même page.
-    const page=ev.target.closest?.('.pdfpage'); if(!page)return;
-    const spans=[...page.querySelectorAll('.textLayer span[data-sync-line]')];
+    while(el && el!==page && !el.dataset?.syncLine) el=el.parentElement;
+    if(el && el.dataset?.syncLine){
+      jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));
+      return;
+    }
+
+    // Si on a cliqué dans une zone sans élément de texte (marge, formule, etc.),
+    // choisir l'élément textuel le plus proche du point de clic.
+    const els=[...page.querySelectorAll('.textLayer [data-sync-line]')];
     let best=null,bestD=Infinity;
-    for(const sp of spans){
+    for(const sp of els){
       const r=sp.getBoundingClientRect();
       const cx=Math.max(r.left,Math.min(ev.clientX,r.right));
       const cy=Math.max(r.top,Math.min(ev.clientY,r.bottom));
-      const d=(cx-ev.clientX)*(cx-ev.clientX)+(cy-ev.clientY)*(cy-ev.clientY);
+      const d=(cx-ev.clientX)**2+(cy-ev.clientY)**2;
       if(d<bestD){bestD=d;best=sp;}
     }
-    if(best&&bestD<90000)jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+    if(best && bestD<180000){
+      jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+    }
   };
 }
 
