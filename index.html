@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.32</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.33</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -2181,9 +2181,6 @@ function buildFormData(files,mainPath){
   const fd=new FormData();
   fd.append('engine','pdflatex');
   fd.append('return','pdf');
-  // Demande explicitement plusieurs passes pour resoudre les references croisees
-  // ("Rerun to get cross-references right") qui provoquaient le statut d'erreur.
-  fd.append('runs','2');
   const ordered=files.slice();
   let mainFile=null;
   if(mainPath){const i=ordered.findIndex(f=>f.path===mainPath);if(i>=0){mainFile=ordered[i];if(i>0){ordered.splice(i,1);ordered.unshift(mainFile);}}}
@@ -2444,8 +2441,17 @@ async function compile(){
   {
     const mi=bundle.files.findIndex(f=>f.path===bundle.mainPath);
     const k=mi>=0?mi:0;
-    if(bundle.files[k]&&bundle.files[k].kind!=='binary'&&!/^\s*\\nonstopmode/.test(bundle.files[k].content||'')){
-      bundle.files[k]=Object.assign({},bundle.files[k],{content:'\\nonstopmode\n'+(bundle.files[k].content||'')});
+    if(bundle.files[k]&&bundle.files[k].kind!=='binary'){
+      let c=bundle.files[k].content||'';
+      let prefix='';
+      if(!/^\s*\\nonstopmode/.test(c))prefix+='\\nonstopmode\n';
+      // \nofiles : pas d'ecriture du .aux -> supprime l'avertissement
+      // "Label(s) may have changed. Rerun..." qui faisait renvoyer un statut
+      // d'erreur par texlive.net alors que le PDF etait bien produit.
+      // On ne l'ajoute QUE si le document n'utilise pas \ref/\pageref/toc.
+      const usesRefs=/\\(ref|pageref|tableofcontents|cite|bibliography)\b/.test(c);
+      if(!usesRefs && !/\\nofiles/.test(c))prefix+='\\nofiles\n';
+      if(prefix)bundle.files[k]=Object.assign({},bundle.files[k],{content:prefix+c});
     }
   }
   // Force texlive.net for projects (multi-file). Single docs can use either.
