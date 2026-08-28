@@ -1928,7 +1928,7 @@ let _compileGeneration=0;
 // Build a multi-file form for texlive.net (Overleaf-style projects).
 // `files` is an array of {path, kind:'text'|'binary', content (string) or data (base64), mime}.
 // `mainPath` is the entry point filename.
-function buildForm(files,mainPath,srvKey,iframeName){
+function buildForm(files,mainPath,srvKey,iframeName,compiler){
   const srv=SERVERS[srvKey];
   const form=document.createElement('form');
   form.method='POST';
@@ -1990,6 +1990,7 @@ function buildForm(files,mainPath,srvKey,iframeName){
 // Single-file convenience for the latexonline.cc fallback (no multi-file support).
 function buildSingleFileForm(src,srvKey,iframeName){
   const srv=SERVERS[srvKey];
+  if(srvKey==='latexonline') srv.url='https://latexonline.cc/data?command='+encodeURIComponent(getSelectedCompiler(src))+'&target=document.tex&force=true';
   const form=document.createElement('form');
   const action=(srvKey==='latexonline')
     ? ('https://latexonline.cc/data?command='+encodeURIComponent(getSelectedCompiler(src))+'&target=document.tex&force=true')
@@ -2191,9 +2192,10 @@ function sanitizeBundleForTexlive(files,mainPath){
 }
 
 // Version FormData de la requête (pour l'envoi via fetch, qui permet de lire le log).
-function buildFormData(files,mainPath){
+function buildFormData(files,mainPath,compiler){
   const fd=new FormData();
-  fd.append('engine',getSelectedCompiler(document.getElementById('cm')?.value||''));
+  const mainSource=(files.find(f=>f.path===mainPath)||files.find(f=>f.kind!=='binary')||{}).content||'';
+  fd.append('engine',compiler||getSelectedCompiler(mainSource));
   fd.append('return','pdf');
   const ordered=files.slice();
   let mainFile=null;
@@ -2361,12 +2363,34 @@ function pdfBlobFromBuffer(buf){
 async function readYtotechResponse(res){
   const buf=await res.arrayBuffer();
   const pdf=pdfBlobFromBuffer(buf);
-  if(pdf) return {pdf,log:null};
+  const meta={status:res.status,statusText:res.statusText||'',contentType:res.headers.get('content-type')||'',contentLength:res.headers.get('content-length')||''};
+  if(pdf) return {pdf,log:null,meta,raw:null};
   const text=new TextDecoder('utf-8',{fatal:false}).decode(buf);
   let log=text;
-  try{const j=JSON.parse(text);log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||j.stderr||j.stdout||text;if(typeof log!=='string')log=JSON.stringify(log,null,2);}catch(e){}
-  return {pdf:null,log:String(log||text)};
+  let json=null;
+  try{json=JSON.parse(text);log=json.logs||json.log||(json.result&&(json.result.log||json.result.buildLog))||json.output||json.stderr||json.stdout||text;if(typeof log!=='string')log=JSON.stringify(log,null,2);}catch(e){}
+  return {pdf:null,log:String(log||text),meta,raw:text,json};
 }
+function showYtotechDiagnostic(data,compiler){
+  const pv=document.getElementById('pverr');
+  const meta=(data&&data.meta)||{};
+  const raw=String((data&&data.raw)||'').trim();
+  const escRaw=esc(raw||'(réponse vide)');
+  pv.innerHTML='<div class="errpanel">'
+    +'<div class="errtitle">⚠ YtoTech a refusé la compilation</div>'
+    +'<div class="errsub">Diagnostic de la requête</div>'
+    +'<div class="errcard errprimary erruser">'
+    +'<div class="errhead"><span class="errmsg">HTTP '+esc(String(meta.status||'?'))+' — '+esc(String(meta.statusText||'SERVER_ERROR'))+'</span></div>'
+    +'<div class="errloc">Moteur : '+esc(compiler)+' · Type : '+esc(String(meta.contentType||'inconnu'))+'</div>'
+    +'<div class="errhelp">Le serveur n’a pas fourni de journal LaTeX exploitable. Ce n’est pas un problème du parseur de l’éditeur : YtoTech renvoie ici uniquement une erreur serveur. Une tentative de récupération du log via texlive.net est effectuée automatiquement.</div>'
+    +'</div>'
+    +'<details style="margin-top:10px"><summary>Réponse brute de YtoTech</summary><pre class="pverr-body" style="white-space:pre-wrap">'+escRaw+'</pre></details>'
+    +'</div>';
+  pv.classList.add('show');
+  document.getElementById('pdfframe').style.display='none';
+  document.getElementById('pvph').style.display='none';
+}
+
 function parseYtotechError(txt){
   let log=txt||'';
   try{const j=JSON.parse(log);log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||j.stderr||j.stdout||log;if(typeof log!=='string')log=JSON.stringify(log,null,2);}catch(e){}
@@ -2489,7 +2513,7 @@ async function compile(){
     bundleForYtotech={files:bundle.files.slice(),mainPath:bundle.mainPath,isProject:true,projectName:bundle.projectName};
     const clean=sanitizeBundleForTexlive(bundle.files,bundle.mainPath);
     bundle.files=clean.files;bundle.mainPath=clean.mainPath;
-    setStatus('spin','Compilation ('+bundle.files.length+' fichiers)…');
+    setStatus('spin','Compilation ('+bundle.files.length+' fichiers, '+getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||'')+')…');
   }else{
     bundleForYtotech=bundle;
   }
@@ -2501,7 +2525,7 @@ async function compile(){
   if(bundle.isProject&&_lastFormSrv!=='texlive'){_lastFormSrv='texlive';}
 
   const form=(bundle.isProject||_lastFormSrv==='texlive')
-    ? buildForm(bundle.files,bundle.mainPath,_lastFormSrv,fr.name)
+    ? buildForm(bundle.files,bundle.mainPath,_lastFormSrv,fr.name,getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||''))
     : buildSingleFileForm(bundle.files[0].content,_lastFormSrv,fr.name);
 
   // 1) Essai via fetch : permet de lire le log et d'afficher l'erreur en clair.
@@ -2514,7 +2538,7 @@ async function compile(){
         res=await compileViaYtotech(bundle);
       }else{
         srvLabel='texlive.net';
-        const fd=buildFormData(bundle.files,bundle.mainPath);
+        const fd=buildFormData(bundle.files,bundle.mainPath,getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||''));
         res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
       }
       clearTimeout(timeout);
@@ -2527,6 +2551,7 @@ async function compile(){
         const detectedPdf=pdfBlobFromBuffer(rawBuf);
         responseData=detectedPdf?{pdf:detectedPdf,log:null}:{pdf:null,log:new TextDecoder('utf-8',{fatal:false}).decode(rawBuf)};
       }
+      const activeCompiler=getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||'');
       const blob=responseData.pdf;
       const looksPdf=!!blob;
       if(looksPdf){
@@ -2580,7 +2605,8 @@ async function compile(){
         if(srv==='ytotech' && isOpaqueYtotechError(log)){
           try{
             setStatus('spin','ytotech sans détail — récupération du log via texlive.net…');
-            const fdFallback=buildFormData(bundle.files,bundle.mainPath);
+            const fallbackCompiler=getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||'');
+            const fdFallback=buildFormData(bundle.files,bundle.mainPath,fallbackCompiler);
             const resFallback=await fetch(SERVERS.texlive.url,{method:'POST',body:fdFallback});
             const bufFallback=await resFallback.arrayBuffer();
             const pdfFallback=pdfBlobFromBuffer(bufFallback);
@@ -2599,7 +2625,7 @@ async function compile(){
             if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
             fr.style.display='none';
             setStatus('err','Erreur de compilation');
-            showCompilePanel(fallbackLog || log);
+            showCompilePanel((fallbackLog ? ('Log texlive.net (secours après SERVER_ERROR YtoTech)\n\n'+fallbackLog) : log));
             btn.disabled=false;
             return;
           }catch(fbErr){
@@ -2610,8 +2636,7 @@ async function compile(){
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
         fr.style.display='none';
         if(srv==='ytotech'){
-          let raw=log; try{const j=JSON.parse(log);raw=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||log;}catch(e){}
-          showCompilePanel(String(raw));
+          showYtotechDiagnostic(responseData,activeCompiler);
         }else{
           showCompilePanel(log);
         }
@@ -2631,7 +2656,7 @@ async function compile(){
       // pour pouvoir afficher le panneau d'erreurs au lieu du log brut dans l'iframe.
       console.warn('Compilation via fetch impossible, nouvelle tentative :',e&&e.message);
       try{
-        const fd2=buildFormData(bundle.files,bundle.mainPath);
+        const fd2=buildFormData(bundle.files,bundle.mainPath,getSelectedCompiler((bundle.files.find(f=>f.path===bundle.mainPath)||{}).content||''));
         const res2=await fetch(SERVERS.texlive.url,{method:'POST',body:fd2});
         clearTimeout(timeout);
         const blob2=await res2.blob();
@@ -4452,6 +4477,16 @@ window.showCompileError=function(title,body){
     }
   }catch(e){}
 };
+</script>
+<script>
+// Initialisation persistante du moteur choisi.
+(function(){
+  function initCompilerSelect(){
+    try{const s=document.getElementById('compilerSel'); if(s) s.value=localStorage.getItem('ltx_compiler')||'auto';}catch(e){}
+    try{const s=document.getElementById('srvSel'); if(s) s.value=localStorage.getItem('ltx_srv')||'ytotech';}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initCompilerSelect); else initCompilerSelect();
+})();
 </script>
 </body>
 </html>
