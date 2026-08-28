@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.33</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.34</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -1913,6 +1913,7 @@ const SERVERS={
 
 let _lastFormSrv='texlive';
 let _iframeLoadHandler=null;
+let _compileGeneration=0;
 
 // Build a multi-file form for texlive.net (Overleaf-style projects).
 // `files` is an array of {path, kind:'text'|'binary', content (string) or data (base64), mime}.
@@ -2114,7 +2115,7 @@ async function optimizeImagesForCompile(files){
   for(const f of files){
     if(f.kind==='binary'){
       const ext=(f.path.split('.').pop()||'').toLowerCase();
-      if(['jpg','jpeg','png','webp'].includes(ext)){
+      if(['jpg','jpeg','png'].includes(ext)){
         const bytes=Math.floor((f.data||'').length*3/4);
         // Grosses images : on reduit (et ca reencode proprement au passage).
         if(bytes>THRESH){
@@ -2270,7 +2271,10 @@ function parseTexErrorsAll(log){
     // Est-ce le fichier de l'utilisateur ?
     // document.tex = fichier principal ; un fichier sans /usr/ = a lui aussi.
     const f=(ctxFile||'').toLowerCase();
-    const isUser = f.includes('document.tex') || (f && !f.includes('/usr/') && !f.includes('texmf'));
+    const ctxText=ctx.join('\n').toLowerCase();
+    const systemFile=/\/usr\/|texmf|texlive|miktex/.test(f) || /\/usr\/|texmf|texlive|miktex/.test(ctxText);
+    const packageError=/^package\s+/i.test(msg) || /^class\s+/i.test(msg);
+    const isUser=!systemFile && !packageError;
     errors.push({msg:msg, line:lineNo, file:ctxFile||'', isUser:isUser, ctx:ctx.join('\n')});
   }
   return errors;
@@ -2299,28 +2303,33 @@ function setSrv(v){localStorage.setItem('ltx_srv',v);const s=document.getElement
 async function compileViaYtotech(bundle){
   const resources=[];
   for(const f of bundle.files){
-    if(f.kind==='binary'){
-      resources.push({path:f.path,file:f.data}); // f.data = base64
-    }else if(f.path===bundle.mainPath){
-      resources.push({main:true,content:f.content||''});
-    }else{
-      resources.push({path:f.path,content:f.content||''});
-    }
+    if(f.kind==='binary') resources.push({path:f.path,file:f.data});
+    else if(f.path===bundle.mainPath) resources.push({main:true,content:f.content||''});
+    else resources.push({path:f.path,content:f.content||''});
   }
-  const payload={compiler:'pdflatex',resources,options:{compiler:{halt_on_error:false}}};
-  return fetch('https://latex.ytotech.com/builds/sync',{
-    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)
-  });
+  const payload={compiler:'pdflatex',resources,options:{compiler:{halt_on_error:false},response:{log_files_on_failure:true}}};
+  return fetch('https://latex.ytotech.com/builds/sync',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/pdf,application/json'},body:JSON.stringify(payload)});
+}
+function isPdfBytes(bytes){return bytes&&bytes.length>=5&&bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d;}
+function pdfBlobFromBuffer(buf){
+  const bytes=new Uint8Array(buf);
+  for(let i=0;i<=bytes.length-5;i++) if(isPdfBytes(bytes.subarray(i,i+5))) return new Blob([buf.slice(i)],{type:'application/pdf'});
+  return null;
+}
+async function readYtotechResponse(res){
+  const buf=await res.arrayBuffer();
+  const pdf=pdfBlobFromBuffer(buf);
+  if(pdf) return {pdf,log:null};
+  const text=new TextDecoder('utf-8',{fatal:false}).decode(buf);
+  let log=text;
+  try{const j=JSON.parse(text);log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||j.stderr||j.stdout||text;if(typeof log!=='string')log=JSON.stringify(log,null,2);}catch(e){}
+  return {pdf:null,log:String(log||text)};
 }
 function parseYtotechError(txt){
-  let log=txt;
-  try{
-    const j=JSON.parse(txt);
-    log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||JSON.stringify(j);
-    if(typeof log!=='string')log=JSON.stringify(log);
-  }catch(e){}
-  log=log.replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\\t/g,'\t');
-  return parseTexError(log);
+  let log=txt||'';
+  try{const j=JSON.parse(log);log=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||j.output||j.stderr||j.stdout||log;if(typeof log!=='string')log=JSON.stringify(log,null,2);}catch(e){}
+  log=String(log).replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\\t/g,'\t');
+  return parseTexErrorsAll(log);
 }
 
 // Ne garder que les fichiers réellement utilisés par le document compilé
@@ -2359,6 +2368,7 @@ function computeNeededFiles(files,mainPath){
 }
 
 async function compile(){
+  const compileGeneration=++_compileGeneration;
   autoSave(); // sauvegarde la source à chaque compilation (réflexe Overleaf)
   // Reflexe Overleaf : on pousse tout de suite vers le cloud (sans attendre le delai).
   try{ if(typeof cloudPushState==='function' && drvConnected()){ clearTimeout(_cloudPushTimer); cloudPushState().catch(function(){}); } }catch(e){}
@@ -2389,7 +2399,7 @@ async function compile(){
   },60000);
 
   _iframeLoadHandler=()=>{
-    if(timedOut)return;
+    if(timedOut || compileGeneration!==_compileGeneration)return;
     clearTimeout(timeout);
     btn.disabled=false;
     setStatus('ok','Compilation terminée — '+SERVERS[_lastFormSrv].label);
@@ -2436,24 +2446,10 @@ async function compile(){
   }else{
     bundleForYtotech=bundle;
   }
-  // Comme Overleaf : compiler en nonstopmode pour passer outre les erreurs
-  // récupérables et produire le PDF quand c'est possible.
-  {
-    const mi=bundle.files.findIndex(f=>f.path===bundle.mainPath);
-    const k=mi>=0?mi:0;
-    if(bundle.files[k]&&bundle.files[k].kind!=='binary'){
-      let c=bundle.files[k].content||'';
-      let prefix='';
-      if(!/^\s*\\nonstopmode/.test(c))prefix+='\\nonstopmode\n';
-      // \nofiles : pas d'ecriture du .aux -> supprime l'avertissement
-      // "Label(s) may have changed. Rerun..." qui faisait renvoyer un statut
-      // d'erreur par texlive.net alors que le PDF etait bien produit.
-      // On ne l'ajoute QUE si le document n'utilise pas \ref/\pageref/toc.
-      const usesRefs=/\\(ref|pageref|tableofcontents|cite|bibliography)\b/.test(c);
-      if(!usesRefs && !/\\nofiles/.test(c))prefix+='\\nofiles\n';
-      if(prefix)bundle.files[k]=Object.assign({},bundle.files[k],{content:prefix+c});
-    }
-  }
+  // Ne pas modifier silencieusement le document utilisateur.
+  // YtoTech utilise déjà -interaction=nonstopmode par défaut ; texlive.net
+  // reçoit également le source tel quel. En particulier, ne jamais injecter
+  // \nofiles : cela désactive .aux/.toc/.bbl et casse refs, bibliographies, etc.
   // Force texlive.net for projects (multi-file). Single docs can use either.
   if(bundle.isProject&&_lastFormSrv!=='texlive'){_lastFormSrv='texlive';}
 
@@ -2475,29 +2471,18 @@ async function compile(){
         res=await fetch(SERVERS.texlive.url,{method:'POST',body:fd});
       }
       clearTimeout(timeout);
-      let blob=await res.blob();
       const ct=res.headers.get('content-type')||'';
-      // texlive.net renvoie souvent le PDF PRECEDE d'un long log (chargement des packages).
-      // On cherche donc la signature %PDF- dans TOUT le contenu, pas seulement au debut.
-      const full=await blob.text().catch(()=>'');
-      const pdfPos=full.indexOf('%PDF-');
-      // Un PDF peut etre produit MEME si texlive renvoie "Timeout/Error status: 1"
-      // (cas frequent : "Rerun to get cross-references right"). On considere donc
-      // qu'on a un PDF des qu'on trouve la signature, quel que soit le statut.
-      const looksPdf=(res.ok&&ct.includes('pdf'))||pdfPos!==-1;
+      let responseData;
+      if(srv==='ytotech'){
+        responseData=await readYtotechResponse(res);
+      }else{
+        const rawBuf=await res.arrayBuffer();
+        const detectedPdf=pdfBlobFromBuffer(rawBuf);
+        responseData=detectedPdf?{pdf:detectedPdf,log:null}:{pdf:null,log:new TextDecoder('utf-8',{fatal:false}).decode(rawBuf)};
+      }
+      const blob=responseData.pdf;
+      const looksPdf=!!blob;
       if(looksPdf){
-        // Si le PDF est precede de texte, on recoupe le blob binaire a partir de %PDF-.
-        if(pdfPos>0){
-          const buf=await blob.arrayBuffer();
-          // Recaler sur l'octet %PDF- : on retrouve sa position en octets.
-          const bytes=new Uint8Array(buf);
-          let bpos=-1;
-          for(let k=0;k<bytes.length-4;k++){
-            if(bytes[k]===0x25&&bytes[k+1]===0x50&&bytes[k+2]===0x44&&bytes[k+3]===0x46&&bytes[k+4]===0x2d){bpos=k;break;}
-          }
-          if(bpos>0)blob=new Blob([buf.slice(bpos)],{type:'application/pdf'});
-          else blob=new Blob([buf],{type:'application/pdf'});
-        }
         pdfBlob=blob;
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
         fr.style.display='block';
@@ -2507,7 +2492,7 @@ async function compile(){
         document.getElementById('btnpdf2').disabled=false;
         btn.disabled=false;
       }else{
-        const log=await blob.text();
+        const log=responseData.log||'';
         // Cas texlive.net : le log dit que le PDF a ete produit (Output written)
         // mais aucun PDF n'est joint (souvent avec "Timeout/Error status: 1").
         // On bascule alors AUTOMATIQUEMENT sur ytotech, qui gere mieux ce cas.
@@ -2515,13 +2500,10 @@ async function compile(){
           try{
             setStatus('spin','Nouvelle tentative via ytotech…');
             const res3=await compileViaYtotech(bundleForYtotech||bundle);
-            const blob3=await res3.blob();
-            const txt3=await blob3.text().catch(()=>'');
-            const pos3=txt3.indexOf('%PDF-');
-            if(res3.ok && pos3!==-1){
-              const buf3=await blob3.arrayBuffer();const by=new Uint8Array(buf3);
-              let bp=-1;for(let k=0;k<by.length-4;k++){if(by[k]===0x25&&by[k+1]===0x50&&by[k+2]===0x44&&by[k+3]===0x46&&by[k+4]===0x2d){bp=k;break;}}
-              const pb=(bp>0)?new Blob([buf3.slice(bp)],{type:'application/pdf'}):new Blob([buf3],{type:'application/pdf'});
+            const data3=await readYtotechResponse(res3);
+            const txt3=data3.log||'';
+            if(data3.pdf){
+              const pb=data3.pdf;
               pdfBlob=pb;
               if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
               fr.style.display='block';
@@ -2533,7 +2515,7 @@ async function compile(){
               return;
             }
             // ytotech a echoue aussi : on montre le panneau a partir de son log.
-            let raw3=txt3; try{const j=JSON.parse(txt3);raw3=j.logs||j.log||(j.result&&(j.result.log||j.result.buildLog))||txt3;}catch(e){}
+            let raw3=txt3;
             if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
             fr.style.display='none';
             setStatus('err','Erreur de compilation');
