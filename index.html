@@ -276,10 +276,10 @@ body.light .errraw{color:#8a4a4a}
 .btn-drive.connected{background:#1a1a2e!important;color:#9aa0aa!important;border-color:#3a3a5a!important}
 .btn-drive.syncing{color:#cc8800!important;border-color:#664a1a!important}
 .btn-drive.err{color:#ff6060!important;border-color:#5a2a2a!important}
-#srvSel{background:#1a1a2e;color:#c0c0d0;border:1px solid #3a3a5a;border-radius:7px;padding:6px 8px;font-family:inherit;font-size:12.5px;cursor:pointer;outline:none;height:32px}
-#srvSel:hover{border-color:#4a4a6a}
-body.light #srvSel{background:#fff;color:#3a3a5a;border-color:#d0d0e0}
-body.home #srvSel{display:none!important}
+#srvSel,#compilerSel{background:#1a1a2e;color:#c0c0d0;border:1px solid #3a3a5a;border-radius:7px;padding:6px 8px;font-family:inherit;font-size:12.5px;cursor:pointer;outline:none;height:32px}
+#srvSel:hover,#compilerSel:hover{border-color:#4a4a6a}
+body.light #srvSel,body.light #compilerSel{background:#fff;color:#3a3a5a;border-color:#d0d0e0}
+body.home #srvSel,body.home #compilerSel{display:none!important}
 
 .dsync{font-size:10px;margin-right:4px;flex-shrink:0;width:11px;text-align:center}
 .dsync.ok{color:#4dcc88}
@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.33</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.34</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -549,7 +549,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
       <option value="ytotech">ytotech · images (recommandé)</option>
       <option value="texlive">texlive.net · rapide</option>
     </select>
-    <select id="compilerSel" onchange="setCompiler(this.value)" title="Moteur LaTeX">
+    <select id="compilerSel" onchange="setCompiler(this.value)" title="Moteur de compilation LaTeX">
       <option value="auto">auto · % !TEX / pdflatex</option>
       <option value="pdflatex">pdfLaTeX</option>
       <option value="xelatex">XeLaTeX</option>
