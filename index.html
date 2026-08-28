@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.30</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.32</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -2181,6 +2181,9 @@ function buildFormData(files,mainPath){
   const fd=new FormData();
   fd.append('engine','pdflatex');
   fd.append('return','pdf');
+  // Demande explicitement plusieurs passes pour resoudre les references croisees
+  // ("Rerun to get cross-references right") qui provoquaient le statut d'erreur.
+  fd.append('runs','2');
   const ordered=files.slice();
   let mainFile=null;
   if(mainPath){const i=ordered.findIndex(f=>f.path===mainPath);if(i>=0){mainFile=ordered[i];if(i>0){ordered.splice(i,1);ordered.unshift(mainFile);}}}
@@ -2472,6 +2475,9 @@ async function compile(){
       // On cherche donc la signature %PDF- dans TOUT le contenu, pas seulement au debut.
       const full=await blob.text().catch(()=>'');
       const pdfPos=full.indexOf('%PDF-');
+      // Un PDF peut etre produit MEME si texlive renvoie "Timeout/Error status: 1"
+      // (cas frequent : "Rerun to get cross-references right"). On considere donc
+      // qu'on a un PDF des qu'on trouve la signature, quel que soit le statut.
       const looksPdf=(res.ok&&ct.includes('pdf'))||pdfPos!==-1;
       if(looksPdf){
         // Si le PDF est precede de texte, on recoupe le blob binaire a partir de %PDF-.
