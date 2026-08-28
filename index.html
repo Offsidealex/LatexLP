@@ -209,6 +209,16 @@ body.light .pal-check{color:#1a5a99}
 .pvph p{font-size:13px;line-height:1.7}
 .pvph .kbdhint{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#5a5a70}
 #pdfframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:#525659}
+#pdfviewer{position:absolute;inset:0;overflow:auto;background:#525659;display:none;padding:22px 0 40px;}
+#pdfviewer .pdfpage{position:relative;margin:0 auto 18px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);}
+#pdfviewer canvas{display:block;}
+#pdfviewer .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1.0;opacity:1;}
+#pdfviewer .textLayer span,#pdfviewer .textLayer br{color:transparent;position:absolute;white-space:pre;transform-origin:0% 0%;cursor:text;}
+#pdfviewer .textLayer span:hover{background:rgba(77,166,255,.12);}
+#pdfviewer .syncHint{position:sticky;top:8px;z-index:20;width:max-content;max-width:90%;margin:0 auto 12px;padding:6px 10px;border-radius:6px;background:rgba(20,25,35,.82);color:#dcecff;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;}
+body.light #pdfviewer{background:#dfe3e8;}
+body.light #pdfviewer .syncHint{background:rgba(255,255,255,.92);color:#33445a;}
+
 .pverr{position:absolute;inset:0;display:none;background:#262626;color:#ff8080;padding:24px;font-family:monospace;font-size:12.5px;line-height:1.6;overflow-y:auto;white-space:pre-wrap}
 .pverr.show{display:block}
 .pverr .pverr-title{color:#ff6060;font-weight:bold;margin-bottom:10px;font-size:13px;text-transform:uppercase;letter-spacing:0.8px}
@@ -506,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.34</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.35</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -768,6 +778,7 @@ body.light .np-field input,body.light .np-field select{background:#fff;border-co
             <p>Cliquer sur <strong style="color:#4da6ff">Compiler</strong> pour générer l'aperçu</p>
             <span class="kbdhint"><kbd>Ctrl</kbd> + <kbd>↵</kbd></span>
           </div>
+          <div id="pdfviewer" aria-label="Aperçu PDF synchronisé"></div>
           <iframe id="pdfframe" name="pdfframe"></iframe>
           <div class="pverr" id="pverr"></div>
         </div>
@@ -1263,6 +1274,7 @@ function moveDocToFolder(docId,folder,e){
 }
 
 let cm, currentId=null, currentProject=null, saveTimer=null, pdfBlob=null;
+let syncIndex=null, syncPdf=null, syncRenderToken=0;
 
 function resize(){
   if(!cm) return;
@@ -2388,6 +2400,7 @@ function showYtotechDiagnostic(data,compiler){
     +'</div>';
   pv.classList.add('show');
   document.getElementById('pdfframe').style.display='none';
+  const vv=document.getElementById('pdfviewer'); if(vv)vv.style.display='none';
   document.getElementById('pvph').style.display='none';
 }
 
@@ -2433,6 +2446,134 @@ function computeNeededFiles(files,mainPath){
   return files.filter(f=>needed.has(f.path));
 }
 
+
+// ==================== Synchronisation PDF -> source (v0.35) ====================
+// Les serveurs distants renvoient un PDF, mais pas le fichier SyncTeX. On utilise
+// donc PDF.js et une correspondance robuste entre le texte visible du PDF et les
+// lignes du source. Ce n'est pas un SyncTeX natif, mais le double-clic fonctionne
+// comme dans un éditeur LaTeX pour les zones textuelles et reste sans modification
+// du fichier utilisateur.
+function syncNorm(s){
+  return String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()
+    .replace(/https?:\/\/\S+/g,' ')
+    .replace(/[^a-z0-9à-ÿ]+/gi,' ').replace(/\s+/g,' ').trim();
+}
+function stripLatexForSync(line){
+  let x=String(line||'').replace(/%.*$/,'');
+  x=x.replace(/\\\\(?:[a-zA-Z@]+|.)/g,' '); // commandes + commandes à un caractère
+  x=x.replace(/\\(?:begin|end|documentclass|usepackage|newcommand|renewcommand|title|author|date|label|ref|pageref|cite|includegraphics|input|include)\s*(?:\[[^\]]*\])?\s*\{[^}]*\}/g,' ');
+  x=x.replace(/\\[a-zA-Z@]+\*?/g,' ');
+  x=x.replace(/[{}$\[\]]/g,' ');
+  x=x.replace(/~+/g,' ');
+  return syncNorm(x);
+}
+function buildSyncIndex(bundle){
+  const idx=[]; const tokenMap=new Map();
+  for(const f of (bundle&&bundle.files)||[]){
+    if(f.kind==='binary')continue;
+    const lines=String(f.content||'').split(/\r?\n/);
+    for(let i=0;i<lines.length;i++){
+      const clean=stripLatexForSync(lines[i]);
+      if(!clean)continue;
+      const entry={file:f.path,line:i+1,text:clean,tokens:new Set(clean.split(' ').filter(t=>t.length>=2))};
+      const n=idx.push(entry)-1;
+      for(const t of entry.tokens){
+        if(!tokenMap.has(t))tokenMap.set(t,[]);
+        const a=tokenMap.get(t); if(a.length<80)a.push(n);
+      }
+    }
+  }
+  syncIndex={entries:idx,tokenMap};
+}
+function bestSourceForPdfText(text){
+  if(!syncIndex)return null;
+  const n=syncNorm(text); if(!n)return null;
+  const toks=[...new Set(n.split(' ').filter(t=>t.length>=2))];
+  const candidates=new Set();
+  for(const t of toks){const a=syncIndex.tokenMap.get(t)||[];for(const i of a)candidates.add(i);}
+  if(!candidates.size)return null;
+  let best=null,bestScore=0;
+  for(const i of candidates){
+    const e=syncIndex.entries[i]; let hit=0;
+    for(const t of toks)if(e.tokens.has(t))hit++;
+    const coverage=hit/Math.max(1,toks.length);
+    const lineCoverage=hit/Math.max(1,e.tokens.size);
+    const exact=(e.text===n)?5:0;
+    const score=exact+coverage*4+lineCoverage*2;
+    if(score>bestScore){bestScore=score;best=e;}
+  }
+  return bestScore>=1.5?best:null;
+}
+function findProjectDoc(path){
+  const docs=getDocs();
+  let d=docs.find(x=>x.projectId===currentProject && (x.projectPath===path || x.name===path));
+  if(d)return d;
+  const base=String(path||'').split('/').pop();
+  return docs.find(x=>x.projectId===currentProject && (x.projectPath||x.name).split('/').pop()===base) || null;
+}
+function jumpToSource(file,line){
+  if(!file||!line)return;
+  let target=getDocs().find(d=>d.id===currentId && ((d.projectPath||d.name)===file));
+  if(!target && currentProject)target=findProjectDoc(file);
+  if(target && target.id!==currentId){openDoc(target.id);}
+  if(target){
+    setTimeout(()=>{try{cm.setCursor({line:Math.max(0,line-1),ch:0});cm.scrollIntoView({line:Math.max(0,line-1),ch:0},120);cm.focus();}catch(e){}},20);
+  }else if(cm){
+    try{cm.setCursor({line:Math.max(0,line-1),ch:0});cm.scrollIntoView({line:Math.max(0,line-1),ch:0},120);cm.focus();}catch(e){}
+  }
+}
+async function renderPdfViewer(blob,bundle){
+  const viewer=document.getElementById('pdfviewer');
+  const fr=document.getElementById('pdfframe');
+  if(!viewer||!window.pdfjsLib){ fr.style.display='block'; fr.src=URL.createObjectURL(blob); return; }
+  buildSyncIndex(bundle); syncRenderToken++; const token=syncRenderToken;
+  viewer.innerHTML='<div class="syncHint">Double-cliquez dans le PDF pour aller à la ligne correspondante du source</div>';
+  viewer.style.display='block'; fr.style.display='none';
+  const data=new Uint8Array(await blob.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data}).promise; syncPdf=pdf;
+  for(let pageNum=1;pageNum<=pdf.numPages;pageNum++){
+    if(token!==syncRenderToken)return;
+    const page=await pdf.getPage(pageNum);
+    const base=1.35;
+    const viewport=page.getViewport({scale:base});
+    const wrap=document.createElement('div');wrap.className='pdfpage';wrap.dataset.page=pageNum;wrap.style.width=viewport.width+'px';wrap.style.height=viewport.height+'px';
+    const canvas=document.createElement('canvas'); canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height); canvas.style.width=viewport.width+'px';canvas.style.height=viewport.height+'px';
+    wrap.appendChild(canvas);
+    const layer=document.createElement('div');layer.className='textLayer';layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';
+    wrap.appendChild(layer);viewer.appendChild(wrap);
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+    const tc=await page.getTextContent();
+    const divs=[];
+    if(pdfjsLib.renderTextLayer){
+      await pdfjsLib.renderTextLayer({textContent:tc,container:layer,viewport,textDivs:divs}).promise;
+    }
+    const items=tc.items||[];
+    for(let i=0;i<items.length;i++){
+      const item=items[i]; const div=divs[i]; if(!div||!item.str)continue;
+      const hit=bestSourceForPdfText(item.str);
+      if(hit){div.dataset.syncFile=hit.file;div.dataset.syncLine=hit.line;div.title=hit.file+':'+hit.line;}
+    }
+  }
+  viewer.ondblclick=function(ev){
+    let el=ev.target;
+    while(el&&el!==viewer && !el.dataset?.syncLine)el=el.parentElement;
+    if(el&&el.dataset.syncLine){jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));return;}
+    // Si le double-clic tombe dans une zone blanche (marge, formule, etc.),
+    // prendre le texte visible le plus proche sur la même page.
+    const page=ev.target.closest?.('.pdfpage'); if(!page)return;
+    const spans=[...page.querySelectorAll('.textLayer span[data-sync-line]')];
+    let best=null,bestD=Infinity;
+    for(const sp of spans){
+      const r=sp.getBoundingClientRect();
+      const cx=Math.max(r.left,Math.min(ev.clientX,r.right));
+      const cy=Math.max(r.top,Math.min(ev.clientY,r.bottom));
+      const d=(cx-ev.clientX)*(cx-ev.clientX)+(cy-ev.clientY)*(cy-ev.clientY);
+      if(d<bestD){bestD=d;best=sp;}
+    }
+    if(best&&bestD<90000)jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+  };
+}
+
 function isOpaqueYtotechError(log){
   const t=String(log||'');
   return /SERVER_ERROR/i.test(t) && !/LaTeX Error|Emergency stop|Undefined control sequence|Fatal error|Package .* Error|^! /m.test(t);
@@ -2454,6 +2595,7 @@ async function compile(){
   pverr.classList.remove('show');
   pvph.style.display='none';
   fr.style.display='block';
+  const pdfviewer=document.getElementById('pdfviewer'); if(pdfviewer){pdfviewer.style.display='none';pdfviewer.innerHTML='';}
   pdfBlob=null;
   document.getElementById('btnpdf').disabled=true;
   document.getElementById('btnpdf2').disabled=true;
@@ -2557,8 +2699,8 @@ async function compile(){
       if(looksPdf){
         pdfBlob=blob;
         if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
-        fr.style.display='block';
-        fr.src=URL.createObjectURL(blob);
+        fr.style.display='none';
+        renderPdfViewer(blob,bundle).catch(e=>{console.warn('PDF.js sync viewer:',e);fr.style.display='block';fr.src=URL.createObjectURL(blob);});
         setStatus('ok','Compilation terminée — '+srvLabel);
         document.getElementById('btnpdf').disabled=false;
         document.getElementById('btnpdf2').disabled=false;
@@ -2578,8 +2720,8 @@ async function compile(){
               const pb=data3.pdf;
               pdfBlob=pb;
               if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
-              fr.style.display='block';
-              fr.src=URL.createObjectURL(pb);
+              fr.style.display='none';
+              renderPdfViewer(pb,bundleForYtotech||bundle).catch(e=>{console.warn('PDF.js sync viewer:',e);fr.style.display='block';fr.src=URL.createObjectURL(pb);});
               setStatus('ok','Compilation terminée — ytotech (auto)');
               document.getElementById('btnpdf').disabled=false;
               document.getElementById('btnpdf2').disabled=false;
@@ -2613,8 +2755,8 @@ async function compile(){
             if(pdfFallback){
               pdfBlob=pdfFallback;
               if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
-              fr.style.display='block';
-              fr.src=URL.createObjectURL(pdfFallback);
+              fr.style.display='none';
+              renderPdfViewer(pdfFallback,bundle).catch(e=>{console.warn('PDF.js sync viewer:',e);fr.style.display='block';fr.src=URL.createObjectURL(pdfFallback);});
               setStatus('ok','Compilation terminée — texlive.net (secours)');
               document.getElementById('btnpdf').disabled=false;
               document.getElementById('btnpdf2').disabled=false;
@@ -2665,8 +2807,8 @@ async function compile(){
         if((res2.ok&&ct2.includes('pdf'))||head2==='%PDF-'){
           pdfBlob=blob2;
           if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
-          fr.style.display='block';
-          fr.src=URL.createObjectURL(blob2);
+          fr.style.display='none';
+          renderPdfViewer(blob2,bundle).catch(e=>{console.warn('PDF.js sync viewer:',e);fr.style.display='block';fr.src=URL.createObjectURL(blob2);});
           setStatus('ok','Compilation terminée — texlive.net');
           document.getElementById('btnpdf').disabled=false;
           document.getElementById('btnpdf2').disabled=false;
@@ -2826,6 +2968,7 @@ function openDoc(id,save=true){
   document.getElementById('btnpdf2').disabled=true;
   document.getElementById('pdfframe').style.display='none';
   document.getElementById('pdfframe').src='';
+  const pv=document.getElementById('pdfviewer'); if(pv){pv.style.display='none';pv.innerHTML='';}
   document.getElementById('pvph').style.display='flex';
   document.getElementById('pverr').classList.remove('show');
 }
@@ -3421,6 +3564,10 @@ function openPdfFull(){
   form.submit();
   setTimeout(()=>form.remove(),100);
 }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
 </script>
 <script>
 try{setSrv(getSrv());setCompiler(getCompiler());}catch(e){}
