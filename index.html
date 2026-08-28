@@ -506,7 +506,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.34</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.33</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -548,6 +548,16 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
     <select id="srvSel" onchange="setSrv(this.value)" title="Serveur de compilation">
       <option value="ytotech">ytotech · images (recommandé)</option>
       <option value="texlive">texlive.net · rapide</option>
+    </select>
+    <select id="compilerSel" onchange="setCompiler(this.value)" title="Moteur LaTeX">
+      <option value="auto">auto · % !TEX / pdflatex</option>
+      <option value="pdflatex">pdfLaTeX</option>
+      <option value="xelatex">XeLaTeX</option>
+      <option value="lualatex">LuaLaTeX</option>
+      <option value="uplatex">upLaTeX</option>
+      <option value="platex">pLaTeX</option>
+      <option value="latex">LaTeX</option>
+      <option value="context">ConTeXt</option>
     </select>
     <button class="btn-compile" onclick="compile()" id="btnc">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1931,7 +1941,7 @@ function buildForm(files,mainPath,srvKey,iframeName){
   // Engine + return
   for(const k of ['engine','return']){
     const inp=document.createElement('input');inp.type='hidden';inp.name=k;
-    inp.value=k==='engine'?'pdflatex':'pdf';
+    inp.value=k==='engine'?getSelectedCompiler(document.getElementById('cm')?.value||''):'pdf';
     form.appendChild(inp);
   }
 
@@ -1981,7 +1991,10 @@ function buildForm(files,mainPath,srvKey,iframeName){
 function buildSingleFileForm(src,srvKey,iframeName){
   const srv=SERVERS[srvKey];
   const form=document.createElement('form');
-  form.method='POST';form.action=srv.url;form.target=iframeName;
+  const action=(srvKey==='latexonline')
+    ? ('https://latexonline.cc/data?command='+encodeURIComponent(getSelectedCompiler(src))+'&target=document.tex&force=true')
+    : srv.url;
+  form.method='POST';form.action=action;form.target=iframeName;
   form.enctype='multipart/form-data';form.acceptCharset='utf-8';form.style.display='none';
   for(const k in srv.fields){
     const v=srv.fields[k];
@@ -2180,7 +2193,7 @@ function sanitizeBundleForTexlive(files,mainPath){
 // Version FormData de la requête (pour l'envoi via fetch, qui permet de lire le log).
 function buildFormData(files,mainPath){
   const fd=new FormData();
-  fd.append('engine','pdflatex');
+  fd.append('engine',getSelectedCompiler(document.getElementById('cm')?.value||''));
   fd.append('return','pdf');
   const ordered=files.slice();
   let mainFile=null;
@@ -2299,6 +2312,27 @@ function parseTexError(log){
 function getSrv(){return localStorage.getItem('ltx_srv')||'ytotech';}
 function setSrv(v){localStorage.setItem('ltx_srv',v);const s=document.getElementById('srvSel');if(s)s.value=v;}
 
+// ---- Choix du moteur LaTeX ----
+// Les deux serveurs acceptent les moteurs classiques. TeXLive.net documente
+// notamment pdflatex, xelatex, lualatex, uplatex, platex, latex et context ;
+// YtoTech accepte également ces moteurs (et quelques variantes).
+function getCompiler(){return localStorage.getItem('ltx_compiler')||'auto';}
+function setCompiler(v){localStorage.setItem('ltx_compiler',v);const s=document.getElementById('compilerSel');if(s)s.value=v;}
+function detectCompilerFromSource(src){
+  const m=(src||'').match(/^\s*%\s*!TEX(?:\s+program\s*=|\s+engine\s*=|\s+)?\s*(pdflatex|xelatex|lualatex|uplatex|platex|latex|context)\s*$/im);
+  if(m)return m[1].toLowerCase();
+  // Forme courante : % !TEX lualatex
+  const m2=(src||'').match(/^\s*%\s*!TEX\s+(pdflatex|xelatex|lualatex|uplatex|platex|latex|context)\s*$/im);
+  return m2?m2[1].toLowerCase():'pdflatex';
+}
+function getSelectedCompiler(src){
+  const v=getCompiler();
+  if(v!=='auto')return v;
+  let source=src||'';
+  try{if(!source && typeof cm!=='undefined' && cm && typeof cm.getValue==='function')source=cm.getValue();}catch(e){}
+  return detectCompilerFromSource(source);
+}
+
 // Compilation via latex.ytotech.com (API JSON, images en base64 -> pas de corruption).
 async function compileViaYtotech(bundle){
   const resources=[];
@@ -2307,7 +2341,15 @@ async function compileViaYtotech(bundle){
     else if(f.path===bundle.mainPath) resources.push({main:true,content:f.content||''});
     else resources.push({path:f.path,content:f.content||''});
   }
-  const payload={compiler:'pdflatex',resources,options:{compiler:{halt_on_error:false},response:{log_files_on_failure:true}}};
+  const mainSource=(bundle.files.find(f=>f.path===bundle.mainPath)||bundle.files.find(f=>f.kind!=='binary')||{}).content||'';
+  const payload={
+    compiler:getSelectedCompiler(mainSource),
+    resources,
+    options:{
+      compiler:{halt_on_error:false,silent:false,force:true,bibliography:true},
+      response:{log_files_on_failure:true,commands:true}
+    }
+  };
   return fetch('https://latex.ytotech.com/builds/sync',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/pdf,application/json'},body:JSON.stringify(payload)});
 }
 function isPdfBytes(bytes){return bytes&&bytes.length>=5&&bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d;}
@@ -2365,6 +2407,11 @@ function computeNeededFiles(files,mainPath){
     }
   }
   return files.filter(f=>needed.has(f.path));
+}
+
+function isOpaqueYtotechError(log){
+  const t=String(log||'');
+  return /SERVER_ERROR/i.test(t) && !/LaTeX Error|Emergency stop|Undefined control sequence|Fatal error|Package .* Error|^! /m.test(t);
 }
 
 async function compile(){
@@ -2524,6 +2571,39 @@ async function compile(){
             return;
           }catch(e3){
             // ytotech injoignable : on retombe sur le log texlive.
+          }
+        }
+        // YtoTech peut parfois ne renvoyer qu'un {"error":"SERVER_ERROR"}.
+        // Dans ce cas, le navigateur ne peut pas inventer le log serveur : on
+        // essaie immédiatement texlive.net avec le même moteur pour obtenir
+        // le vrai journal LaTeX et la ligne fautive.
+        if(srv==='ytotech' && isOpaqueYtotechError(log)){
+          try{
+            setStatus('spin','ytotech sans détail — récupération du log via texlive.net…');
+            const fdFallback=buildFormData(bundle.files,bundle.mainPath);
+            const resFallback=await fetch(SERVERS.texlive.url,{method:'POST',body:fdFallback});
+            const bufFallback=await resFallback.arrayBuffer();
+            const pdfFallback=pdfBlobFromBuffer(bufFallback);
+            if(pdfFallback){
+              pdfBlob=pdfFallback;
+              if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+              fr.style.display='block';
+              fr.src=URL.createObjectURL(pdfFallback);
+              setStatus('ok','Compilation terminée — texlive.net (secours)');
+              document.getElementById('btnpdf').disabled=false;
+              document.getElementById('btnpdf2').disabled=false;
+              btn.disabled=false;
+              return;
+            }
+            const fallbackLog=new TextDecoder('utf-8',{fatal:false}).decode(bufFallback);
+            if(_iframeLoadHandler)fr.removeEventListener('load',_iframeLoadHandler);
+            fr.style.display='none';
+            setStatus('err','Erreur de compilation');
+            showCompilePanel(fallbackLog || log);
+            btn.disabled=false;
+            return;
+          }catch(fbErr){
+            console.warn('Fallback texlive après SERVER_ERROR ytotech échoué:',fbErr&&fbErr.message);
           }
         }
         setStatus('err','Erreur de compilation');
@@ -3318,6 +3398,7 @@ function openPdfFull(){
 }
 </script>
 <script>
+try{setSrv(getSrv());setCompiler(getCompiler());}catch(e){}
 // ========================= Google Drive sync =========================
 // Jumeau du bloc GitHub. Auth via Google Identity Services (token model,
 // scope drive.file). Le token vit en mémoire uniquement (jamais stocké).
