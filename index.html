@@ -2561,6 +2561,7 @@ async function renderPdfViewer(blob,bundle){
   buildSyncIndex(bundle); syncRenderToken++; const token=syncRenderToken;
   viewer.innerHTML='<div class="syncHint">Double-cliquez dans le PDF pour aller à la ligne correspondante du source</div>';
   viewer.style.display='block'; fr.style.display='none';
+  installPdfSyncDblClick();
   const data=new Uint8Array(await blob.arrayBuffer());
   const pdf=await pdfjsLib.getDocument({data}).promise; syncPdf=pdf;
   for(let pageNum=1;pageNum<=pdf.numPages;pageNum++){
@@ -2591,18 +2592,11 @@ async function renderPdfViewer(blob,bundle){
       const hit=bestSourceForPdfText(item.str);
       if(hit)makeSyncTextHit(hitLayer,item,hit,viewport,i);
     }
-    hitLayer.addEventListener('dblclick',ev=>{
-      ev.preventDefault(); ev.stopPropagation();
-      const el=ev.target.closest('[data-sync-line]');
-      if(el){jumpToSource(el.dataset.syncFile,parseInt(el.dataset.syncLine,10));}
-      else findNearestSyncHit(hitLayer,ev.clientX,ev.clientY);
-    },true);
-    wrap.addEventListener('dblclick',ev=>{
-      if(ev.target===canvas||ev.target===wrap)findNearestSyncHit(hitLayer,ev.clientX,ev.clientY);
-    },true);
+    // Le double-clic est géré par le listener unique installé sur #pdfviewer.
   }
 }
 function findNearestSyncHit(layer,cx,cy){
+  if(!layer)return;
   const els=[...layer.querySelectorAll('[data-sync-line]')];
   let best=null,bestD=Infinity;
   for(const el of els){
@@ -2612,7 +2606,48 @@ function findNearestSyncHit(layer,cx,cy){
     const d=(x-cx)*(x-cx)+(y-cy)*(y-cy);
     if(d<bestD){bestD=d;best=el;}
   }
-  if(best&&bestD<250000)jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+  // La zone de clic peut être sur le canvas, entre deux fragments de texte,
+  // ou sur une zone blanche. On accepte une zone raisonnable autour du texte.
+  if(best&&bestD<360000){
+    jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+    return true;
+  }
+  return false;
+}
+
+// v0.38 — gestion centralisée du double-clic PDF.
+// Le listener est placé sur le viewer lui-même : il fonctionne donc aussi
+// lorsque le clic tombe sur le canvas, sur une zone transparente ou entre
+// deux fragments de texte PDF.js. On recherche ensuite la zone source la
+// plus proche sur la page concernée.
+function installPdfSyncDblClick(){
+  const viewer=document.getElementById('pdfviewer');
+  if(!viewer||viewer.dataset.syncDblclick==='1')return;
+  viewer.dataset.syncDblclick='1';
+  viewer.addEventListener('dblclick',ev=>{
+    const page=ev.target.closest ? ev.target.closest('.pdfpage') : null;
+    if(!page)return;
+    ev.preventDefault(); ev.stopPropagation();
+    const layer=page.querySelector('.textLayer');
+    if(layer&&findNearestSyncHit(layer,ev.clientX,ev.clientY))return;
+
+    // Dernier secours : chercher dans toutes les zones de texte de la page.
+    // Cela couvre notamment les clics sur les marges internes du canvas.
+    if(layer){
+      const els=[...layer.querySelectorAll('[data-sync-line]')];
+      let best=null,bestD=Infinity;
+      for(const el of els){
+        const r=el.getBoundingClientRect();
+        const dx=(ev.clientX<(r.left)?r.left-ev.clientX:ev.clientX>r.right?ev.clientX-r.right:0);
+        const dy=(ev.clientY<(r.top)?r.top-ev.clientY:ev.clientY>r.bottom?ev.clientY-r.bottom:0);
+        const d=dx*dx+dy*dy;
+        if(d<bestD){bestD=d;best=el;}
+      }
+      if(best){
+        jumpToSource(best.dataset.syncFile,parseInt(best.dataset.syncLine,10));
+      }
+    }
+  },true);
 }
 
 function isOpaqueYtotechError(log){
