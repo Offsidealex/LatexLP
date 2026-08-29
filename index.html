@@ -516,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.37</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.39</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -635,6 +635,10 @@ body.light .pj-title{color:#1a1a2e}
 .pj-folder{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#8a8aa5;font-weight:600;padding:5px 8px 3px;cursor:pointer;border-radius:5px}
 .pj-folder:hover{background:#20264a}
 .pj-folder.pjf-selected{background:#0d3b6633;color:#7ec4ff}
+.pj-folder .pjf-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-folder .dedit{opacity:0;flex-shrink:0;font-size:12px;color:#6a8aa8;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
+.pj-folder:hover .dedit{opacity:.85}
+.pj-folder .dedit:hover{opacity:1;color:#4da6ff}
 body.light .pj-folder.pjf-selected{background:#dbeafe;color:#1a5a99}
 body.light .pj-folder{color:#6a6a80}
 .pitem-asset{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7a7a90;padding:5px 9px;border-radius:6px;width:100%}
@@ -2333,7 +2337,8 @@ function setSrv(v){localStorage.setItem('ltx_srv',v);const s=document.getElement
 function getCompiler(){return localStorage.getItem('ltx_compiler')||'auto';}
 function setCompiler(v){localStorage.setItem('ltx_compiler',v);const s=document.getElementById('compilerSel');if(s)s.value=v;}
 function detectCompilerFromSource(src){
-  const m=(src||'').match(/^\s*%\s*!TEX(?:\s+program\s*=|\s+engine\s*=|\s+)?\s*(pdflatex|xelatex|lualatex|uplatex|platex|latex|context)\s*$/im);
+  // Accepte aussi "TS-program" (forme ecrite par TeXShop, tres repandue).
+  const m=(src||'').match(/^\s*%\s*!TEX(?:\s+(?:TS-)?program\s*=|\s+engine\s*=|\s+)?\s*(pdflatex|xelatex|lualatex|uplatex|platex|latex|context)\s*$/im);
   if(m)return m[1].toLowerCase();
   // Forme courante : % !TEX lualatex
   const m2=(src||'').match(/^\s*%\s*!TEX\s+(pdflatex|xelatex|lualatex|uplatex|platex|latex|context)\s*$/im);
@@ -2474,7 +2479,10 @@ function syncNorm(s){
     .replace(/[^a-z0-9à-ÿ]+/gi,' ').replace(/\s+/g,' ').trim();
 }
 function stripLatexForSync(line){
-  let x=String(line||'').replace(/%.*$/,'');
+  // Ne retirer que les % de COMMENTAIRE (non echappes) : "\%" est un vrai
+  // pourcentage et le texte qui suit doit etre conserve pour la synchro.
+  let x=String(line||'').replace(/(?<!\\)%.*$/,'');
+  x=x.replace(/\\%/g,' pourcent ');
   x=x.replace(/\\(?:begin|end|documentclass|usepackage|newcommand|renewcommand|title|author|date|label|ref|pageref|cite|includegraphics|input|include)\s*(?:\[[^\]]*\])?\s*\{[^}]*\}/g,' ');
   x=x.replace(/\\[a-zA-Z@]+\*?/g,' ');
   x=x.replace(/[{}$\[\]]/g,' ');
@@ -4088,7 +4096,8 @@ function renderProjectScoped(){
       const folderPath=(node.__path?node.__path+'/':'')+fn;
       node.folders[fn].__path=folderPath;
       const selCls=(window._importTargetDir===folderPath)?' pjf-selected':'';
-      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${folderPath.replace(/'/g,"\\'")}',event)" title="Cliquer pour choisir ce dossier comme cible d'import d'image"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(fn)}</div>`;
+      const fpEsc=folderPath.replace(/'/g,"\\'");
+      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${fpEsc}',event)" title="Cliquer pour choisir ce dossier comme cible d'import"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="pjf-name">${esc(fn)}</span><button class="dedit" onclick="renameProjectFolder('${fpEsc}',event)" title="Renommer ce dossier">✎</button></div>`;
       h+=renderNode(node.folders[fn],depth+1);
     }
     const files=node.files.slice().sort((a,b)=>{
@@ -4118,8 +4127,9 @@ function renderProjectScoped(){
   el.innerHTML=`
     <div class="pj-back" onclick="showHome()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Mes projets</div>
     <div class="pj-title"><span class="pj-spine" style="background:${c}"></span>${esc(proj.name)}</div>
-    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="createProjectFolder()" title="Créer un dossier" style="margin-left:2px">📁</button><button onclick="document.getElementById('imgImport').click()" title="Importer une image dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><button onclick="scanAllImages()" title="Vérifier toutes les images (détecte les corrompues)" style="margin-left:2px">🔎</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
+    <div class="pj-files-hdr">FICHIERS <button onclick="addProjectFile()" title="Ajouter un fichier .tex">＋</button><button onclick="createProjectFolder()" title="Créer un dossier" style="margin-left:2px">📁</button><button onclick="document.getElementById('texImport').click()" title="Importer un .tex (ou .sty/.bib) dans le dossier selectionne" style="margin-left:2px">📄</button><button onclick="document.getElementById('imgImport').click()" title="Importer une ou plusieurs images dans le dossier selectionne (clique un dossier d'abord)" style="margin-left:2px">🖼</button><button onclick="scanAllImages()" title="Vérifier toutes les images (détecte les corrompues)" style="margin-left:2px">🔎</button><span id="importHint" style="font-size:10px;color:#7ec4ff;font-weight:400;margin-left:6px"></span></div>
     <input type="file" id="imgImport" accept="image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp,.pdf" multiple style="display:none" onchange="importImagesToProject(this.files);this.value=''">
+    <input type="file" id="texImport" accept=".tex,.sty,.cls,.bib" multiple style="display:none" onchange="importTexToProject(this.files);this.value=''">
     ${renderNode(root,0)}`;
 }
 
@@ -4231,6 +4241,77 @@ async function scanAllImages(){
   setStatus(bad.length?'err':'ok', bad.length?(bad.length+' image(s) corrompue(s)'):'Images OK');
 }
 
+function renameProjectFolder(path,e){
+  if(e)e.stopPropagation();
+  if(!currentProject)return;
+  const proj=getProject(currentProject); if(!proj)return;
+  const oldPath=String(path||'').replace(/^\/+|\/+$/g,'');
+  if(!oldPath)return;
+  const parts=oldPath.split('/'); const oldBase=parts.pop(); const parent=parts.join('/');
+  let nn=prompt('Nouveau nom du dossier :',oldBase);
+  if(nn===null)return;
+  nn=nn.trim().replace(/[\/\\]/g,'-');
+  if(!nn||nn===oldBase)return;
+  const newPath=parent?parent+'/'+nn:nn;
+
+  // Refus si un dossier de ce nom existe deja au meme niveau.
+  const exists=Object.keys(proj.files||{}).some(p=>p===newPath+'/.keep'||p.startsWith(newPath+'/'))
+    || getDocs().some(d=>d.projectId===currentProject&&String(d.projectPath||'').startsWith(newPath+'/'));
+  if(exists){alert('Un dossier porte deja ce nom.');return;}
+
+  const oldPrefix=oldPath+'/';
+  const newPrefix=newPath+'/';
+
+  // a) Renommer les chemins des pieces jointes (images, .sty, .keep...)
+  updateProject(currentProject,function(p){
+    if(!p.files)return;
+    const out={};
+    for(const [k,v] of Object.entries(p.files)){
+      out[k.startsWith(oldPrefix)?(newPrefix+k.slice(oldPrefix.length)):k]=v;
+    }
+    p.files=out;
+    // Le fichier principal peut lui aussi etre dans le dossier renomme.
+    if(p.mainPath&&String(p.mainPath).startsWith(oldPrefix))p.mainPath=newPrefix+String(p.mainPath).slice(oldPrefix.length);
+  });
+
+  // b) Renommer les chemins des .tex du projet
+  const docs=getDocsRaw(); let changed=false;
+  for(const d of docs){
+    if(d.projectId!==currentProject)continue;
+    const pp=String(d.projectPath||'');
+    if(pp.startsWith(oldPrefix)){
+      d.projectPath=newPrefix+pp.slice(oldPrefix.length);
+      d.updatedAt=Date.now(); changed=true;
+    }
+  }
+
+  // c) Mettre a jour les references qui citaient l'ancien dossier
+  //    (\includegraphics{ancien/img.png}, \input{ancien/part})
+  const esc=oldPath.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const reRef=new RegExp('([{,\\s])'+esc+'/','g');
+  for(const d of docs){
+    if(d.projectId!==currentProject)continue;
+    const c=d.content||'';
+    const nc=c.replace(reRef,'$1'+newPath+'/');
+    if(nc!==c){d.content=nc;d.updatedAt=Date.now();changed=true;}
+  }
+  if(changed)saveDocs(docs);
+
+  // d) Recharger l'editeur si le document courant a ete modifie
+  if(currentId){
+    const cur=getDocs().find(d=>d.id===currentId);
+    if(cur&&cur.projectId===currentProject&&cm){cm.setValue(cur.content||'');cm.clearHistory();}
+  }
+  // e) Suivre la cible d'import si elle pointait sur ce dossier
+  if(window._importTargetDir===oldPath||String(window._importTargetDir||'').startsWith(oldPrefix)){
+    window._importTargetDir=newPath+String(window._importTargetDir||'').slice(oldPath.length);
+    const hint=document.getElementById('importHint');
+    if(hint)hint.textContent='Cible : '+window._importTargetDir+'/';
+  }
+  cloudFlushNow();
+  renderDocs();
+}
+
 function createProjectFolder(){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
   let name=prompt('Nom du nouveau dossier :', window._importTargetDir?(window._importTargetDir+'/nouveau'):'images');
@@ -4248,6 +4329,56 @@ function createProjectFolder(){
   renderDocs();
   const hint=document.getElementById('importHint');
   if(hint)hint.textContent='Cible : '+name+'/';
+}
+
+// Importe un ou plusieurs .tex dans le projet, dans le dossier selectionne.
+async function importTexToProject(files){
+  if(!currentProject){alert("Ouvre un projet d'abord.");return;}
+  if(!files||!files.length)return;
+  let dir=(window._importTargetDir||'').replace(/^\/+|\/+$/g,'');
+  if(!dir){
+    const ans=prompt('Dossier de destination dans le projet\n(laisser vide pour la racine ; clique un dossier avant pour eviter ceci) :','');
+    if(ans===null)return;
+    dir=ans.trim().replace(/^\/+|\/+$/g,'');
+  }
+  let done=0, skipped=[];
+  // Comme pour les images : on accumule tout, puis une seule ecriture.
+  const newDocs=[]; const newAssets={};
+  const taken=new Set(getDocs().filter(d=>d.projectId===currentProject).map(d=>d.projectPath));
+  for(const file of files){
+    try{
+      if(!/\.(tex|sty|cls|bib)$/i.test(file.name)){skipped.push(file.name+' (extension non supportee)');continue;}
+      const text=await file.text();
+      const path=(dir?dir+'/':'')+file.name;
+      if(/\.tex$/i.test(file.name)){
+        if(taken.has(path)){skipped.push(file.name+' (existe deja)');continue;}
+        taken.add(path);
+        newDocs.push({id:genId(),name:file.name,content:text,folder:'',
+          projectId:currentProject,projectPath:path,createdAt:Date.now(),updatedAt:Date.now()});
+      }else{
+        newAssets[path]={type:'text',content:text};
+      }
+      done++;
+    }catch(e){ skipped.push(file.name+' (erreur de lecture)'); }
+  }
+  if(newDocs.length){
+    const docs=getDocs();
+    for(const d of newDocs)docs.unshift(d);
+    saveDocs(docs);
+  }
+  if(Object.keys(newAssets).length){
+    updateProject(currentProject,function(p){
+      if(!p.files)p.files={};
+      for(const [k,v] of Object.entries(newAssets))p.files[k]=v;
+    });
+  }else{
+    updateProject(currentProject,function(){});
+  }
+  cloudFlushNow();
+  renderDocs();
+  let msg='Import termine : '+done+' fichier(s) ajoute(s)'+(dir?(' dans '+dir+'/'):' a la racine')+'.';
+  if(skipped.length)msg+='\n\nNon importes :\n- '+skipped.join('\n- ');
+  alert(msg);
 }
 
 async function importImagesToProject(files){
@@ -4268,6 +4399,10 @@ async function importImagesToProject(files){
     dir=ans.trim().replace(/^\/+|\/+$/g,'');
   }
   let done=0, bad=[];
+  // On accumule TOUTES les images d'abord, puis on ecrit le projet UNE SEULE fois.
+  // (Un updateProject par image relisait le projet a chaque tour et pouvait
+  //  ecraser les ajouts precedents : une seule image finissait importee.)
+  const toAdd={};
   for(const file of files){
     try{
       const b64=await new Promise(function(res,rej){
@@ -4280,10 +4415,16 @@ async function importImagesToProject(files){
         const ok=await validateImageB64(b64,file.type||'image/png');
         if(!ok){bad.push(file.name+' (illisible / corrompue)');continue;}
       }
-      let path=(dir?dir+'/':'')+file.name;
-      updateProject(currentProject,function(p){ if(!p.files)p.files={}; p.files[path]={type:'binary',data:b64,mime:file.type||mimeFor(path)}; });
+      const path=(dir?dir+'/':'')+file.name;
+      toAdd[path]={type:'binary',data:b64,mime:file.type||mimeFor(path)};
       done++;
     }catch(e){ bad.push(file.name+' (erreur)'); }
+  }
+  if(done){
+    updateProject(currentProject,function(p){
+      if(!p.files)p.files={};
+      for(const [k,v] of Object.entries(toAdd))p.files[k]=v;
+    });
   }
   cloudFlushNow();
   renderDocs();
@@ -4312,10 +4453,14 @@ function previewProjectImage(path,e){
 
 function addProjectFile(){
   if(!currentProject)return;
-  let fn=prompt('Nom du nouveau fichier (ex : chap2.tex) :','nouveau.tex');
+  // Si un dossier est selectionne, le nouveau fichier y est cree.
+  const dir=(window._importTargetDir||'').replace(/^\/+|\/+$/g,'');
+  const suggestion=dir?dir+'/nouveau.tex':'nouveau.tex';
+  let fn=prompt('Nom du nouveau fichier (ex : chap2.tex) :',suggestion);
   if(fn===null)return;
   fn=fn.trim();if(!fn)return;
   if(!/\.tex$/i.test(fn))fn+='.tex';
+  fn=fn.replace(/^\/+/,'');
   const exists=getDocs().some(d=>d.projectId===currentProject&&d.projectPath===fn);
   if(exists){alert('Un fichier porte déjà ce nom dans le projet.');return;}
   const id=genId();const docs=getDocs();
