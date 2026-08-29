@@ -2368,9 +2368,26 @@ async function compileViaYtotech(bundle){
 }
 function isPdfBytes(bytes){return bytes&&bytes.length>=5&&bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d;}
 function pdfBlobFromBuffer(buf){
+  // Extrait un PDF propre du buffer. texlive.net peut renvoyer quelques octets
+  // après %%EOF ; le lecteur PDF natif les tolère parfois, mais PDF.js peut
+  // refuser le document. On coupe donc exactement à la fin du dernier %%EOF.
   const bytes=new Uint8Array(buf);
-  for(let i=0;i<=bytes.length-5;i++) if(isPdfBytes(bytes.subarray(i,i+5))) return new Blob([buf.slice(i)],{type:'application/pdf'});
-  return null;
+  let start=-1;
+  for(let i=0;i<=bytes.length-5;i++){
+    if(isPdfBytes(bytes.subarray(i,i+5))){start=i;break;}
+  }
+  if(start<0)return null;
+  const eof=new Uint8Array([0x25,0x25,0x45,0x4f,0x46]); // %%EOF
+  let end=-1;
+  for(let i=bytes.length-5;i>=start;i--){
+    let ok=true;
+    for(let j=0;j<5;j++)if(bytes[i+j]!==eof[j]){ok=false;break;}
+    if(ok){end=i+5;break;}
+  }
+  // Quelques PDF ont un retour à la ligne après %%EOF : on le conserve.
+  if(end<0)end=bytes.length;
+  while(end<bytes.length && (bytes[end]===0x0a || bytes[end]===0x0d || bytes[end]===0x20 || bytes[end]===0x09))end++;
+  return new Blob([bytes.slice(start,end)],{type:'application/pdf'});
 }
 async function readYtotechResponse(res){
   const buf=await res.arrayBuffer();
@@ -2615,7 +2632,7 @@ function findNearestSyncHit(layer,cx,cy){
   return false;
 }
 
-// v0.38 — gestion centralisée du double-clic PDF.
+// v0.39 — gestion centralisée du double-clic PDF.
 // Le listener est placé sur le viewer lui-même : il fonctionne donc aussi
 // lorsque le clic tombe sur le canvas, sur une zone transparente ou entre
 // deux fragments de texte PDF.js. On recherche ensuite la zone source la
