@@ -516,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.39</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.40</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -639,6 +639,10 @@ body.light .pj-title{color:#1a1a2e}
 .pj-folder .dedit{opacity:0;flex-shrink:0;font-size:12px;color:#6a8aa8;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
 .pj-folder:hover .dedit{opacity:.85}
 .pj-folder .dedit:hover{opacity:1;color:#4da6ff}
+.pj-folder.dropok{background:#0d3b66;color:#7ec4ff;outline:2px dashed #4da6ff;outline-offset:-2px}
+body.light .pj-folder.dropok{background:#dbeafe;color:#1a5a99;outline-color:#1a5a99}
+.ditem[draggable="true"],.pitem-asset[draggable="true"]{cursor:grab}
+.ditem[draggable="true"]:active,.pitem-asset[draggable="true"]:active{cursor:grabbing}
 body.light .pj-folder.pjf-selected{background:#dbeafe;color:#1a5a99}
 body.light .pj-folder{color:#6a6a80}
 .pitem-asset{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#7a7a90;padding:5px 9px;border-radius:6px;width:100%}
@@ -1121,7 +1125,9 @@ function purgeTrash(){
 function saveProjects(p){localStorage.setItem('ltx_projects',JSON.stringify(p))}
 function getProject(pid){return getProjects().find(p=>p.id===pid)}
 function updateProject(pid,fn){
-  const ps=getProjects();const i=ps.findIndex(p=>p.id===pid);
+  // IMPORTANT : lire la liste COMPLETE (getProjectsRaw), sinon chaque ecriture
+  // supprimerait definitivement les projets en corbeille.
+  const ps=getProjectsRaw();const i=ps.findIndex(p=>p.id===pid);
   if(i===-1)return null;
   fn(ps[i]);ps[i].updatedAt=Date.now();saveProjects(ps);return ps[i];
 }
@@ -3583,6 +3589,8 @@ function setupFileDrop(){
   });
   window.addEventListener('drop',e=>{
     if(_dragDocId)return;
+    if(e._pjHandled)return;              // deja traite par un dossier du projet
+    if(window._dragProjPath)return;      // deplacement interne en cours
     if(!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length)return;
     e.preventDefault();
     _dragCounter=0;
@@ -4097,7 +4105,7 @@ function renderProjectScoped(){
       node.folders[fn].__path=folderPath;
       const selCls=(window._importTargetDir===folderPath)?' pjf-selected':'';
       const fpEsc=folderPath.replace(/'/g,"\\'");
-      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${fpEsc}',event)" title="Cliquer pour choisir ce dossier comme cible d'import"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="pjf-name">${esc(fn)}</span><button class="dedit" onclick="renameProjectFolder('${fpEsc}',event)" title="Renommer ce dossier">✎</button></div>`;
+      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${fpEsc}',event)" ondragover="onFolderDragOverPJ(event,'${fpEsc}')" ondragleave="onFolderDragLeavePJ(event)" ondrop="onFolderDropPJ(event,'${fpEsc}')" title="Cliquer pour cibler ce dossier — ou y deposer des fichiers"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="pjf-name">${esc(fn)}</span><button class="dedit" onclick="renameProjectFolder('${fpEsc}',event)" title="Renommer ce dossier">✎</button></div>`;
       h+=renderNode(node.folders[fn],depth+1);
     }
     const files=node.files.slice().sort((a,b)=>{
@@ -4113,13 +4121,14 @@ function renderProjectScoped(){
         const badge=(st==='off')?'':`<button class="dsync ${st}" title="${esc(drvStateTitle(st))}" onclick="drvPushCurrent('${d.id}',event)">${drvStateIcon(st)}</button>`;
         const ren=isMain?'':`<button class="dedit" onclick="renameProjectFile('${d.id}',event)" title="Renommer ce fichier">✎</button>`;
         const del=isMain?'':`<button class="ddel" onclick="deleteProjectFile('${d.id}',event)" title="Supprimer ce fichier">✕</button>`;
-        h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${ren}${del}</div>`;
+        const texPath=(d.projectPath||d.name).replace(/'/g,"\\'");
+        h+=`<div class="ditem ${d.id===currentId?'dactive':''}" style="padding-left:${pad}px" draggable="true" ondragstart="onProjItemDragStart(event,'${texPath}','tex')" ondragend="onProjItemDragEnd()" onclick="openDoc('${d.id}')">${badge}<span class="dname"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>${esc(f.name)}${isMain?'<span class="mainbadge">main</span>':''}</span>${ren}${del}</div>`;
       }else{
         const ic=f.info.type==='binary'?'🖼':'📄';
         const apath=(f.fullpath||f.name).replace(/'/g,"\\'");
         const isImg=/\.(png|jpe?g|gif|webp)$/i.test(f.name);
         const clickPrev=isImg?`onclick="previewProjectImage('${apath}',event)" style="cursor:zoom-in"`:'';
-        h+=`<div class="pitem-asset" style="padding-left:${pad}px" title="${esc(f.name)}${isImg?' — cliquer pour apercu':' — inclus à la compilation'}"><span class="passet-ic">${ic}</span><span class="passet-name" ${clickPrev}>${esc(f.name)}</span><button class="dedit" onclick="renameProjectAsset('${apath}',event)" title="Renommer ce fichier joint">✎</button><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
+        h+=`<div class="pitem-asset" style="padding-left:${pad}px" draggable="true" ondragstart="onProjItemDragStart(event,'${apath}','asset')" ondragend="onProjItemDragEnd()" title="${esc(f.name)}${isImg?' — cliquer pour apercu, glisser pour deplacer':' — glisser pour deplacer'}"><span class="passet-ic">${ic}</span><span class="passet-name" ${clickPrev}>${esc(f.name)}</span><button class="dedit" onclick="renameProjectAsset('${apath}',event)" title="Renommer ce fichier joint">✎</button><button class="ddel" onclick="deleteProjectAsset('${apath}',event)" title="Supprimer ce fichier joint">✕</button></div>`;
       }
     }
     return h;
@@ -4239,6 +4248,108 @@ async function scanAllImages(){
   const fr=document.getElementById('pdfframe'); if(fr)fr.style.display='none';
   const ph=document.getElementById('pvph'); if(ph)ph.style.display='none';
   setStatus(bad.length?'err':'ok', bad.length?(bad.length+' image(s) corrompue(s)'):'Images OK');
+}
+
+// ---------- Glisser-deposer dans l'arborescence ----------
+window._dragProjPath=null;   // chemin du fichier deplace (interne)
+window._dragProjKind=null;   // 'tex' | 'asset'
+
+function onProjItemDragStart(e,path,kind){
+  window._dragProjPath=path; window._dragProjKind=kind;
+  try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',path);}catch(err){}
+  e.stopPropagation();
+}
+function onProjItemDragEnd(){ window._dragProjPath=null; window._dragProjKind=null;
+  document.querySelectorAll('.pj-folder.dropok').forEach(x=>x.classList.remove('dropok')); }
+
+function onFolderDragOverPJ(e,dir){
+  e.preventDefault(); e.stopPropagation();
+  try{e.dataTransfer.dropEffect=window._dragProjPath?'move':'copy';}catch(err){}
+  e.currentTarget.classList.add('dropok');
+}
+function onFolderDragLeavePJ(e){ e.currentTarget.classList.remove('dropok'); }
+
+// Deplace un fichier deja present dans le projet vers un autre dossier.
+function moveProjectEntry(oldPath,dir){
+  if(!currentProject||!oldPath)return;
+  const base=String(oldPath).split('/').pop();
+  const newPath=(dir?dir+'/':'')+base;
+  if(newPath===oldPath)return;
+
+  const proj=getProject(currentProject); if(!proj)return;
+  const isAsset=proj.files && (oldPath in proj.files);
+
+  // Refus si un fichier du meme nom existe deja a destination
+  const clashAsset=proj.files && (newPath in proj.files);
+  const clashDoc=getDocs().some(d=>d.projectId===currentProject&&d.projectPath===newPath);
+  if(clashAsset||clashDoc){alert('Un fichier porte deja ce nom dans le dossier de destination.');return;}
+
+  if(isAsset){
+    updateProject(currentProject,function(p){
+      p.files[newPath]=p.files[oldPath]; delete p.files[oldPath];
+    });
+  }else{
+    const docs=getDocsRaw();
+    const d=docs.find(x=>x.projectId===currentProject&&x.projectPath===oldPath);
+    if(!d)return;
+    d.projectPath=newPath; d.updatedAt=Date.now();
+    saveDocs(docs);
+    updateProject(currentProject,function(p){ if(p.mainPath===oldPath)p.mainPath=newPath; });
+  }
+
+  // Mettre a jour les references (\includegraphics / \input) vers l'ancien chemin
+  const escOld=String(oldPath).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const escBase=base.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const noExt=base.replace(/\.[^.]+$/,'');
+  const escNoExt=noExt.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const newNoExt=newPath.replace(/\.[^.]+$/,'');
+  const docs2=getDocsRaw(); let changed=false;
+  for(const d of docs2){
+    if(d.projectId!==currentProject)continue;
+    let c=d.content||''; const before=c;
+    c=c.replace(new RegExp('([{,\\s])'+escOld+'([},\\s])','g'),'$1'+newPath+'$2');
+    // chemin sans extension (cas \input{dossier/fichier})
+    c=c.replace(new RegExp('([{,\\s])'+escOld.replace(/\\\.[^.]*$/,'')+'([},\\s])','g'),'$1'+newNoExt+'$2');
+    // reference par nom seul
+    c=c.replace(new RegExp('([{,\\s])'+escBase+'([},\\s])','g'),'$1'+newPath+'$2');
+    c=c.replace(new RegExp('([{,\\s])'+escNoExt+'([},\\s])','g'),'$1'+newNoExt+'$2');
+    if(c!==before){d.content=c;d.updatedAt=Date.now();changed=true;}
+  }
+  if(changed)saveDocs(docs2);
+  if(currentId){const cur=getDocs().find(d=>d.id===currentId);
+    if(cur&&cur.projectId===currentProject&&cm){cm.setValue(cur.content||'');cm.clearHistory();}}
+  cloudFlushNow();
+  renderDocs();
+}
+
+// Depot sur un dossier : soit un fichier interne (deplacement), soit des
+// fichiers venant du disque (import direct dans ce dossier).
+async function onFolderDropPJ(e,dir){
+  e.preventDefault(); e.stopPropagation();
+  e._pjHandled=true;                     // empeche le drop global de rejouer l'import
+  e.currentTarget.classList.remove('dropok');
+  try{const dz=document.getElementById('dropzone');if(dz)dz.classList.remove('show');}catch(err){}
+
+  // a) deplacement interne
+  if(window._dragProjPath){
+    const p=window._dragProjPath; window._dragProjPath=null;
+    moveProjectEntry(p,dir);
+    return;
+  }
+  // b) fichiers venant du disque
+  const dt=e.dataTransfer; if(!dt||!dt.files||!dt.files.length)return;
+  const all=Array.from(dt.files);
+  const prev=window._importTargetDir;
+  window._importTargetDir=dir;   // cible = le dossier survole
+  try{
+    const imgs=all.filter(f=>/\.(png|jpe?g|gif|webp|pdf)$/i.test(f.name));
+    const texs=all.filter(f=>/\.(tex|sty|cls|bib)$/i.test(f.name));
+    if(imgs.length)await importImagesToProject(imgs);
+    if(texs.length)await importTexToProject(texs);
+    if(!imgs.length&&!texs.length)alert('Formats acceptes : images (png, jpg, gif, webp, pdf) et .tex / .sty / .cls / .bib');
+  }finally{
+    window._importTargetDir=prev;
+  }
 }
 
 function renameProjectFolder(path,e){
@@ -4384,6 +4495,8 @@ async function importTexToProject(files){
 async function importImagesToProject(files){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
   if(!files||!files.length)return;
+  // Trace : nombre de fichiers reellement transmis par le navigateur.
+  try{console.log('[import] fichiers recus :',files.length,Array.from(files).map(f=>f.name));}catch(e){}
   const proj=getProject(currentProject);if(!proj)return;
   // Dossier cible : celui selectionne, sinon on demande / defaut images/.
   let dir=window._importTargetDir||'';
@@ -4428,7 +4541,7 @@ async function importImagesToProject(files){
   }
   cloudFlushNow();
   renderDocs();
-  let msg='Import terminé : '+done+' image(s) ajoutée(s)'+(dir?(' dans '+dir+'/'):'')+'.';
+  let msg='Import terminé : '+done+' image(s) ajoutée(s) sur '+files.length+' sélectionnée(s)'+(dir?(' dans '+dir+'/'):'')+'.';
   if(bad.length)msg+='\n\nNon importées :\n- '+bad.join('\n- ');
   alert(msg);
 }
