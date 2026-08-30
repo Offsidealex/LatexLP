@@ -516,7 +516,11 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
+<<<<<<< HEAD
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.42</span>
+=======
   <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.41</span>
+>>>>>>> 4010ced53ea16e4fb55fc01022ebfb950ddba1c4
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -639,6 +643,9 @@ body.light .pj-title{color:#1a1a2e}
 .pj-folder .dedit{opacity:0;flex-shrink:0;font-size:12px;color:#6a8aa8;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
 .pj-folder:hover .dedit{opacity:.85}
 .pj-folder .dedit:hover{opacity:1;color:#4da6ff}
+.pj-folder .ddel{opacity:0;flex-shrink:0;font-size:13px;color:#cc4444;padding:0 4px;background:none;border:none;cursor:pointer;line-height:1}
+.pj-folder:hover .ddel{opacity:.85}
+.pj-folder .ddel:hover{opacity:1;transform:scale(1.15)}
 .pj-folder.dropok{background:#0d3b66;color:#7ec4ff;outline:2px dashed #4da6ff;outline-offset:-2px}
 body.light .pj-folder.dropok{background:#dbeafe;color:#1a5a99;outline-color:#1a5a99}
 .ditem[draggable="true"],.pitem-asset[draggable="true"]{cursor:grab}
@@ -4105,7 +4112,7 @@ function renderProjectScoped(){
       node.folders[fn].__path=folderPath;
       const selCls=(window._importTargetDir===folderPath)?' pjf-selected':'';
       const fpEsc=folderPath.replace(/'/g,"\\'");
-      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${fpEsc}',event)" ondragover="onFolderDragOverPJ(event,'${fpEsc}')" ondragleave="onFolderDragLeavePJ(event)" ondrop="onFolderDropPJ(event,'${fpEsc}')" title="Cliquer pour cibler ce dossier — ou y deposer des fichiers"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="pjf-name">${esc(fn)}</span><button class="dedit" onclick="renameProjectFolder('${fpEsc}',event)" title="Renommer ce dossier">✎</button></div>`;
+      h+=`<div class="pj-folder${selCls}" style="padding-left:${8+depth*13}px" onclick="selectImportDir('${fpEsc}',event)" ondragover="onFolderDragOverPJ(event,'${fpEsc}')" ondragleave="onFolderDragLeavePJ(event)" ondrop="onFolderDropPJ(event,'${fpEsc}')" title="Cliquer pour cibler ce dossier — ou y deposer des fichiers"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="pjf-name">${esc(fn)}</span><button class="dedit" onclick="renameProjectFolder('${fpEsc}',event)" title="Renommer ce dossier">✎</button><button class="ddel" onclick="deleteProjectFolder('${fpEsc}',event)" title="Supprimer ce dossier (doit être vide)">✕</button></div>`;
       h+=renderNode(node.folders[fn],depth+1);
     }
     const files=node.files.slice().sort((a,b)=>{
@@ -4350,6 +4357,48 @@ async function onFolderDropPJ(e,dir){
   }finally{
     window._importTargetDir=prev;
   }
+}
+
+function deleteProjectFolder(path,e){
+  if(e)e.stopPropagation();
+  if(!currentProject)return;
+  const proj=getProject(currentProject); if(!proj)return;
+  const dir=String(path||'').replace(/^\/+|\/+$/g,'');
+  if(!dir)return;
+  const prefix=dir+'/';
+
+  // Inventaire du contenu (fichiers .tex + pieces jointes, sous-dossiers inclus)
+  const texIn=getDocs().filter(d=>d.projectId===currentProject&&String(d.projectPath||'').startsWith(prefix));
+  const assetsIn=Object.keys(proj.files||{}).filter(p=>p.startsWith(prefix)&&!(proj.files[p]&&proj.files[p].keep));
+  const total=texIn.length+assetsIn.length;
+
+  if(total>0){
+    const apercu=[].concat(
+      texIn.map(d=>'  • '+d.projectPath),
+      assetsIn.map(p=>'  • '+p)
+    ).slice(0,12).join('\n');
+    const reste=total>12?('\n  … et '+(total-12)+' autre(s)'):'';
+    alert('Le dossier « '+dir+' » n\'est pas vide : '+total+' fichier(s).\n\n'
+      +apercu+reste
+      +'\n\nDeplace ou supprime son contenu d\'abord (tu peux glisser les fichiers vers un autre dossier).');
+    return;
+  }
+
+  // Dossier vide : on retire son marqueur .keep (et ceux des sous-dossiers vides)
+  if(!confirm('Supprimer le dossier vide « '+dir+' » ?'))return;
+  updateProject(currentProject,function(p){
+    if(!p.files)return;
+    for(const k of Object.keys(p.files)){
+      if(k===prefix+'.keep'||k.startsWith(prefix))delete p.files[k];
+    }
+  });
+  // Si ce dossier etait la cible d'import, on la libere
+  if(window._importTargetDir===dir||String(window._importTargetDir||'').startsWith(prefix)){
+    window._importTargetDir='';
+    const hint=document.getElementById('importHint'); if(hint)hint.textContent='';
+  }
+  cloudFlushNow();
+  renderDocs();
 }
 
 function renameProjectFolder(path,e){
