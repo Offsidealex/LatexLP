@@ -516,7 +516,7 @@ if(localStorage.getItem('ltx_cloud_offline')!=='1')
 </script>
 
 <div class="hdr">
-  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.40</span>
+  <span class="logo">La<b>TeX</b> Studio</span><span id="appVersion" title="Version">v0.41</span>
   <div class="tbr">
     <span class="asbadge" id="asbadge"><span id="astxt">—</span></span>
     <div id="topFind" title="Rechercher dans le document">
@@ -4445,7 +4445,9 @@ function createProjectFolder(){
 // Importe un ou plusieurs .tex dans le projet, dans le dossier selectionne.
 async function importTexToProject(files){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
-  if(!files||!files.length)return;
+  // Meme precaution que pour les images : figer la FileList (voir commentaire la-bas).
+  const fileList=Array.from(files||[]);
+  if(!fileList.length)return;
   let dir=(window._importTargetDir||'').replace(/^\/+|\/+$/g,'');
   if(!dir){
     const ans=prompt('Dossier de destination dans le projet\n(laisser vide pour la racine ; clique un dossier avant pour eviter ceci) :','');
@@ -4456,7 +4458,7 @@ async function importTexToProject(files){
   // Comme pour les images : on accumule tout, puis une seule ecriture.
   const newDocs=[]; const newAssets={};
   const taken=new Set(getDocs().filter(d=>d.projectId===currentProject).map(d=>d.projectPath));
-  for(const file of files){
+  for(const file of fileList){
     try{
       if(!/\.(tex|sty|cls|bib)$/i.test(file.name)){skipped.push(file.name+' (extension non supportee)');continue;}
       const text=await file.text();
@@ -4494,9 +4496,11 @@ async function importTexToProject(files){
 
 async function importImagesToProject(files){
   if(!currentProject){alert("Ouvre un projet d'abord.");return;}
-  if(!files||!files.length)return;
-  // Trace : nombre de fichiers reellement transmis par le navigateur.
-  try{console.log('[import] fichiers recus :',files.length,Array.from(files).map(f=>f.name));}catch(e){}
+  // IMPORTANT : figer la liste immediatement. `files` est une FileList vivante
+  // liee a l'input ; le `this.value=''` du onchange la vide pendant nos `await`,
+  // ce qui interrompait la boucle apres le premier fichier.
+  const fileList=Array.from(files||[]);
+  if(!fileList.length)return;
   const proj=getProject(currentProject);if(!proj)return;
   // Dossier cible : celui selectionne, sinon on demande / defaut images/.
   let dir=window._importTargetDir||'';
@@ -4516,7 +4520,7 @@ async function importImagesToProject(files){
   // (Un updateProject par image relisait le projet a chaque tour et pouvait
   //  ecraser les ajouts precedents : une seule image finissait importee.)
   const toAdd={};
-  for(const file of files){
+  for(const file of fileList){
     try{
       const b64=await new Promise(function(res,rej){
         const r=new FileReader();
@@ -4541,7 +4545,7 @@ async function importImagesToProject(files){
   }
   cloudFlushNow();
   renderDocs();
-  let msg='Import terminé : '+done+' image(s) ajoutée(s) sur '+files.length+' sélectionnée(s)'+(dir?(' dans '+dir+'/'):'')+'.';
+  let msg='Import terminé : '+done+' image(s) ajoutée(s) sur '+fileList.length+' sélectionnée(s)'+(dir?(' dans '+dir+'/'):'')+'.';
   if(bad.length)msg+='\n\nNon importées :\n- '+bad.join('\n- ');
   alert(msg);
 }
